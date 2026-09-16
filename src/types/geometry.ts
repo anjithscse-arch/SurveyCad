@@ -7,6 +7,7 @@ export interface SurveyPoint extends Point2D {
   id: string;
   label: string; // "A", "B", "P1", etc.
   elevation?: number | null;
+  z?: number; // Alias for elevation (RL)
   code?: string;
   description?: string;
   isFixed?: boolean;
@@ -18,6 +19,7 @@ export interface SurveyLine {
   endPointId: string;
   color?: string;
   style?: 'solid' | 'dashed';
+  boundaryType?: 'boundary' | 'fence' | 'wall' | 'easement' | 'centerline' | 'construction';
 }
 
 export interface SurveyArc {
@@ -26,6 +28,7 @@ export interface SurveyArc {
   endPointId: string;
   midPointId?: string; // Optional third on-curve point
   center: Point2D;
+  centerPoint?: Point2D; // Alias
   radius: number;
   deltaRad: number; // Central angle in radians
   arcLength: number; // Curve distance in meters (L = R * delta)
@@ -40,6 +43,7 @@ export interface SurveyArc {
 export interface SurveyPolygon {
   id: string;
   name?: string;
+  parcelNumber?: string;
   pointIds: string[]; // Ordered list of point IDs
   isClosed: boolean;
   color?: string;

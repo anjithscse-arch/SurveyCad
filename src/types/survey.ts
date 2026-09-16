@@ -1,5 +1,5 @@
-export type LinearUnit = 'm' | 'cm' | 'mm' | 'ft' | 'in';
-export type AreaUnit = 'sqm' | 'sqft' | 'acre' | 'hectare' | 'cent' | 'sqyd';
+export type LinearUnit = 'm' | 'cm' | 'mm' | 'ft' | 'usft' | 'in';
+export type AreaUnit = 'sqm' | 'sqft' | 'acre' | 'hectare' | 'cent' | 'guntha' | 'sqyd';
 export type AngleFormat = 'deg' | 'dms' | 'quadrant'; // Decimal degrees, DMS (45°15'00"), Quadrant (N 45° E)
 
 export interface TraverseLeg {
@@ -26,6 +26,7 @@ export interface AreaCalculationResult {
   sqFeet: number;
   acres: number;
   cents: number;
+  gunthas?: number;
   hectares: number;
   sqYards: number;
   perimeterMeters: number;
@@ -34,4 +35,23 @@ export interface AreaCalculationResult {
   hasSelfIntersections: boolean;
   isValid: boolean;
   validationError?: string;
+}
+
+export interface AdjustedStation {
+  id: string;
+  label: string;
+  originalX: number;
+  originalY: number;
+  adjustedX: number;
+  adjustedY: number;
+  deltaX: number; // adjusted - original
+  deltaY: number;
+}
+
+export interface TraverseAdjustmentResult {
+  method: 'bowditch' | 'transit';
+  stations: AdjustedStation[];
+  originalClosureError: number;
+  residualError: number;
+  totalLength: number;
 }

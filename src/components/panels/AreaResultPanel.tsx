@@ -56,6 +56,35 @@ export const AreaResultPanel: React.FC = () => {
         </div>
       )}
 
+      {/* Primary Compound Acre-Cent Callout */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(16, 185, 129, 0.12))',
+        border: '1px solid rgba(56, 189, 248, 0.3)',
+        borderRadius: 6,
+        padding: '10px 12px',
+        marginBottom: 12,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div>
+          <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+            Cadastral Acre-Cent Notation
+          </div>
+          <div style={{ fontSize: '17px', fontWeight: '800', fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>
+            {areaResult.acres >= 1
+              ? `${Math.floor(areaResult.acres)} Ac ${(areaResult.cents % 100).toFixed(2)} Cts`
+              : `${areaResult.cents.toFixed(2)} Cents`}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Gunthas (1/40 ac)</div>
+          <div style={{ fontSize: '14px', fontWeight: '700', fontFamily: 'var(--font-mono)', color: '#10b981' }}>
+            {(areaResult.gunthas ?? (areaResult.acres * 40)).toFixed(2)} <span style={{ fontSize: '10px' }}>gth</span>
+          </div>
+        </div>
+      </div>
+
       {/* Multi-unit Area Breakdown Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: 12 }}>
         {/* Square Metres */}
@@ -68,7 +97,7 @@ export const AreaResultPanel: React.FC = () => {
 
         {/* Indian Cents */}
         <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '8px 10px', borderRadius: 4, border: '1px solid rgba(56, 189, 248, 0.25)' }}>
-          <div style={{ fontSize: '10px', color: 'var(--accent-cyan)', fontWeight: '600' }}>Indian Cents (1/100 acre)</div>
+          <div style={{ fontSize: '10px', color: 'var(--accent-cyan)', fontWeight: '600' }}>Indian Cents (1/100 ac)</div>
           <div style={{ fontSize: '15px', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
             {formatNumber(areaResult.cents, 2)} <span style={{ fontSize: '11px' }}>cents</span>
           </div>

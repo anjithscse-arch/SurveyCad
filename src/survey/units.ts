@@ -6,6 +6,7 @@ export const LINEAR_TO_METERS: Record<LinearUnit, number> = {
   cm: 0.01,
   mm: 0.001,
   ft: 0.3048,
+  usft: 1200 / 3937, // ~0.3048006096 m
   in: 0.0254,
 };
 
@@ -14,12 +15,14 @@ export const LINEAR_LABELS: Record<LinearUnit, string> = {
   cm: 'cm',
   mm: 'mm',
   ft: 'ft',
+  usft: 'US ft',
   in: 'in',
 };
 
 // Canonical area unit is SQUARE METERS (m²)
 // 1 acre = 4046.8564224 m²
 // 1 cent = 1/100 acre = 40.468564224 m² = 435.6 sq ft
+// 1 guntha = 1/40 acre = 101.17141056 m² = 121 sq yd
 // 1 hectare = 10000 m²
 // 1 sq ft = 0.3048 * 0.3048 = 0.09290304 m²
 // 1 sq yd = 9 sq ft = 0.83612736 m²
@@ -28,6 +31,7 @@ export const AREA_TO_SQMETERS: Record<AreaUnit, number> = {
   sqft: 0.09290304,
   acre: 4046.8564224,
   cent: 40.468564224,
+  guntha: 101.17141056,
   hectare: 10000,
   sqyd: 0.83612736,
 };
@@ -37,6 +41,7 @@ export const AREA_LABELS: Record<AreaUnit, string> = {
   sqft: 'ft²',
   acre: 'acres',
   cent: 'cents',
+  guntha: 'gunthas',
   hectare: 'ha',
   sqyd: 'sq yd',
 };
@@ -82,4 +87,19 @@ export function formatDistance(valInMeters: number, unit: LinearUnit = 'm', prec
 export function formatArea(valInSqMeters: number, unit: AreaUnit = 'sqm', precision: number = 2): string {
   const converted = convertArea(valInSqMeters, 'sqm', unit);
   return `${formatNumber(converted, precision)} ${AREA_LABELS[unit]}`;
+}
+
+/**
+ * Format area in compound Acre-Cent notation (e.g. "1 Ac 24.50 Cents")
+ */
+export function formatAcreCent(valInSqMeters: number): string {
+  if (isNaN(valInSqMeters) || !isFinite(valInSqMeters) || valInSqMeters <= 0) return '0.00 Cents';
+  const totalCents = valInSqMeters / AREA_TO_SQMETERS.cent;
+  const acres = Math.floor(totalCents / 100);
+  const remCents = totalCents % 100;
+
+  if (acres === 0) {
+    return `${remCents.toFixed(2)} Cents`;
+  }
+  return `${acres} Ac ${remCents.toFixed(2)} Cts`;
 }

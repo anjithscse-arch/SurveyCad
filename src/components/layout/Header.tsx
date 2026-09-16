@@ -21,6 +21,8 @@ import { saveProject } from '../../storage/indexeddb';
 import { exportPointsToCSV, exportLinesToCSV, downloadCSV } from '../../export/csv';
 import { generateSurveyReportPDF } from '../../export/pdf';
 import { downloadSVG, exportSVGToPNGDataUrl } from '../../export/svg';
+import { downloadDXF } from '../../export/dxf';
+import { downloadGeoJSON } from '../../export/geojson';
 import { SetPolygonBoundaryCommand } from '../../commands/polygonCommands';
 import { SurveyPolygon, SurveyLine } from '../../types/geometry';
 
@@ -130,6 +132,18 @@ export const Header: React.FC<HeaderProps> = ({
     if (svg) {
       downloadSVG(svg, `${project.metadata.name.replace(/\s+/g, '_')}_drawing.svg`);
     }
+    closeMenu();
+  };
+
+  // Handle AutoCAD DXF Export
+  const handleExportDXF = () => {
+    downloadDXF(project);
+    closeMenu();
+  };
+
+  // Handle GIS GeoJSON Export
+  const handleExportGeoJSON = () => {
+    downloadGeoJSON(project);
     closeMenu();
   };
 
@@ -348,6 +362,21 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={handleExportLinesCSV}
                 >
                   <FileSpreadsheet size={14} /> Export Survey Lines CSV
+                </button>
+                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+                <button
+                  className="menu-btn"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: '#10b981' }}
+                  onClick={handleExportDXF}
+                >
+                  <Download size={14} /> Export AutoCAD DXF (.dxf)
+                </button>
+                <button
+                  className="menu-btn"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: '#60a5fa' }}
+                  onClick={handleExportGeoJSON}
+                >
+                  <Download size={14} /> Export GIS GeoJSON (.geojson)
                 </button>
                 <button
                   className="menu-btn"

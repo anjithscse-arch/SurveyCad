@@ -115,3 +115,112 @@ export function polygonSelfIntersects(points: Point2D[]): boolean {
 
   return false;
 }
+
+/**
+ * Bearing-Bearing Intersection (COGO):
+ * Calculate the intersection point of two bearing rays emanating from p1 and p2.
+ * Angles in degrees clockwise from North.
+ */
+export function bearingBearingIntersection(
+  p1: Point2D,
+  bearing1Deg: number,
+  p2: Point2D,
+  bearing2Deg: number
+): Point2D | null {
+  const rad1 = (bearing1Deg * Math.PI) / 180;
+  const rad2 = (bearing2Deg * Math.PI) / 180;
+
+  const u1x = Math.sin(rad1);
+  const u1y = Math.cos(rad1);
+  const u2x = Math.sin(rad2);
+  const u2y = Math.cos(rad2);
+
+  // Determinant
+  const det = u1y * u2x - u1x * u2y;
+  if (Math.abs(det) < 1e-9) return null; // Parallel or anti-parallel
+
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+
+  const t1 = (dy * u2x - dx * u2y) / det;
+  return {
+    x: p1.x + t1 * u1x,
+    y: p1.y + t1 * u1y,
+  };
+}
+
+/**
+ * Distance-Distance Intersection (COGO Trilateration):
+ * Find the intersection point(s) of two circles with center p1 (radius r1) and center p2 (radius r2).
+ * Returns 0, 1, or 2 candidate points.
+ */
+export function distanceDistanceIntersection(
+  p1: Point2D,
+  r1: number,
+  p2: Point2D,
+  r2: number
+): Point2D[] {
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  const d = Math.sqrt(dx * dx + dy * dy);
+
+  if (d < 1e-9 || d > r1 + r2 || d < Math.abs(r1 - r2)) {
+    return []; // Concentric or no intersection
+  }
+
+  const a = (r1 * r1 - r2 * r2 + d * d) / (2 * d);
+  const h = Math.sqrt(Math.max(0, r1 * r1 - a * a));
+
+  const x2 = p1.x + (a * dx) / d;
+  const y2 = p1.y + (a * dy) / d;
+
+  if (h < 1e-9) {
+    return [{ x: x2, y: y2 }];
+  }
+
+  const rx = -(dy / d) * h;
+  const ry = (dx / d) * h;
+
+  return [
+    { x: x2 + rx, y: y2 + ry },
+    { x: x2 - rx, y: y2 - ry },
+  ];
+}
+
+/**
+ * Bearing-Distance Intersection (COGO):
+ * Find the intersection of a ray from p1 at bearing1 with a circle at p2 with radius r2.
+ */
+export function bearingDistanceIntersection(
+  p1: Point2D,
+  bearing1Deg: number,
+  p2: Point2D,
+  r2: number
+): Point2D[] {
+  const rad = (bearing1Deg * Math.PI) / 180;
+  const ux = Math.sin(rad);
+  const uy = Math.cos(rad);
+
+  const dx = p1.x - p2.x;
+  const dy = p1.y - p2.y;
+
+  const b = 2 * (dx * ux + dy * uy);
+  const c = dx * dx + dy * dy - r2 * r2;
+
+  const disc = b * b - 4 * c;
+  if (disc < -1e-9) return [];
+
+  if (Math.abs(disc) < 1e-9) {
+    const t = -b / 2;
+    return [{ x: p1.x + t * ux, y: p1.y + t * uy }];
+  }
+
+  const sqrtDisc = Math.sqrt(disc);
+  const t1 = (-b + sqrtDisc) / 2;
+  const t2 = (-b - sqrtDisc) / 2;
+
+  return [
+    { x: p1.x + t1 * ux, y: p1.y + t1 * uy },
+    { x: p1.x + t2 * ux, y: p1.y + t2 * uy },
+  ];
+}

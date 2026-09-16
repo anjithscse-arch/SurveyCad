@@ -95,6 +95,7 @@ export function computeAreaResults(points: Point2D[], isClosed: boolean = true):
     sqFeet: convertArea(sqMeters, 'sqm', 'sqft'),
     acres: convertArea(sqMeters, 'sqm', 'acre'),
     cents: convertArea(sqMeters, 'sqm', 'cent'),
+    gunthas: convertArea(sqMeters, 'sqm', 'guntha'),
     hectares: convertArea(sqMeters, 'sqm', 'hectare'),
     sqYards: convertArea(sqMeters, 'sqm', 'sqyd'),
     perimeterMeters,
