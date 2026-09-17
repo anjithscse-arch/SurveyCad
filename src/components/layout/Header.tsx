@@ -15,6 +15,8 @@ import {
   Moon,
   Check,
   Sparkles,
+  Link2,
+  ChevronDown,
 } from 'lucide-react';
 import { downloadProjectFile, parseProjectJson } from '../../storage/serializer';
 import { saveProject } from '../../storage/indexeddb';
@@ -30,6 +32,7 @@ interface HeaderProps {
   onOpenNewProjectModal: () => void;
   onOpenCoordinateModal: () => void;
   onOpenTraverseModal: () => void;
+  onOpenChainSurveyModal: () => void;
   onOpenCurveModal: () => void;
   onOpenCSVImportModal: () => void;
   onOpenSettingsModal: () => void;
@@ -40,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewProjectModal,
   onOpenCoordinateModal,
   onOpenTraverseModal,
+  onOpenChainSurveyModal,
   onOpenCurveModal,
   onOpenCSVImportModal,
   onOpenSettingsModal,
@@ -54,6 +58,8 @@ export const Header: React.FC<HeaderProps> = ({
   } = useCAD();
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [showAdvancedSurvey, setShowAdvancedSurvey] = useState(false);
+  const [showCadGisExports, setShowCadGisExports] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Close menus when clicking outside
@@ -275,21 +281,9 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   className="menu-btn"
                   style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
-                  onClick={() => { onOpenTraverseModal(); closeMenu(); }}
+                  onClick={() => { onOpenChainSurveyModal(); closeMenu(); }}
                 >
-                  <Compass size={14} /> Add Traverse Leg...
-                </button>
-                <button
-                  className="menu-btn"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: '#38bdf8' }}
-                  onClick={() => { onOpenCurveModal(); closeMenu(); }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M 4 20 A 16 16 0 0 1 20 4" />
-                    <circle cx="4" cy="20" r="2.5" fill="currentColor" />
-                    <circle cx="20" cy="4" r="2.5" fill="currentColor" />
-                  </svg>
-                  Circular Curves & Arcs...
+                  <Link2 size={14} /> Chain Survey (Tape Only, No Compass)...
                 </button>
                 <button
                   className="menu-btn"
@@ -306,14 +300,96 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <FileSpreadsheet size={14} /> Import Points from CSV...
                 </button>
-                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
-                <button
-                  className="menu-btn"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: 'var(--accent-amber)', fontWeight: 'bold' }}
-                  onClick={() => { onOpenSketchModal(); closeMenu(); }}
-                >
-                  <Sparkles size={14} /> Sketch-to-Survey (Smart Import)...
-                </button>
+
+                {/* Advanced Survey Tools gating */}
+                {project.settings.uiMode === 'simple' ? (
+                  <>
+                    <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+                    <button
+                      className="menu-btn"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        textAlign: 'left',
+                        color: 'var(--accent-cyan)',
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                      onClick={() => setShowAdvancedSurvey(!showAdvancedSurvey)}
+                    >
+                      <span>Advanced Tools</span>
+                      <ChevronDown
+                        size={12}
+                        style={{
+                          transform: showAdvancedSurvey ? 'rotate(180deg)' : 'none',
+                          transition: 'transform 0.2s',
+                        }}
+                      />
+                    </button>
+                    {showAdvancedSurvey && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingLeft: 8, borderLeft: '2px solid var(--accent-cyan)', marginTop: 2 }}>
+                        <button
+                          className="menu-btn"
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
+                          onClick={() => { onOpenTraverseModal(); closeMenu(); }}
+                        >
+                          <Compass size={14} /> Add Traverse Leg...
+                        </button>
+                        <button
+                          className="menu-btn"
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: '#38bdf8' }}
+                          onClick={() => { onOpenCurveModal(); closeMenu(); }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M 4 20 A 16 16 0 0 1 20 4" />
+                            <circle cx="4" cy="20" r="2.5" fill="currentColor" />
+                            <circle cx="20" cy="4" r="2.5" fill="currentColor" />
+                          </svg>
+                          Circular Curves & Arcs...
+                        </button>
+                        <button
+                          className="menu-btn"
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: 'var(--accent-amber)' }}
+                          onClick={() => { onOpenSketchModal(); closeMenu(); }}
+                        >
+                          <Sparkles size={14} /> Sketch-to-Survey (Smart Import)...
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+                    <button
+                      className="menu-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
+                      onClick={() => { onOpenTraverseModal(); closeMenu(); }}
+                    >
+                      <Compass size={14} /> Add Traverse Leg...
+                    </button>
+                    <button
+                      className="menu-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: '#38bdf8' }}
+                      onClick={() => { onOpenCurveModal(); closeMenu(); }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M 4 20 A 16 16 0 0 1 20 4" />
+                        <circle cx="4" cy="20" r="2.5" fill="currentColor" />
+                        <circle cx="20" cy="4" r="2.5" fill="currentColor" />
+                      </svg>
+                      Circular Curves & Arcs...
+                    </button>
+                    <button
+                      className="menu-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: 'var(--accent-amber)' }}
+                      onClick={() => { onOpenSketchModal(); closeMenu(); }}
+                    >
+                      <Sparkles size={14} /> Sketch-to-Survey (Smart Import)...
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -335,48 +411,19 @@ export const Header: React.FC<HeaderProps> = ({
                   padding: '4px',
                   boxShadow: 'var(--shadow-lg)',
                   zIndex: 200,
-                  minWidth: 220,
+                  minWidth: 230,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 2,
                 }}
               >
+                {/* Always Top-Level: PDF & SVG */}
                 <button
                   className="menu-btn"
                   style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', fontWeight: 'bold', color: 'var(--accent-cyan)' }}
                   onClick={handleExportPDF}
                 >
                   <FileText size={14} /> Generate PDF Survey Report
-                </button>
-                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
-                <button
-                  className="menu-btn"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
-                  onClick={handleExportPointsCSV}
-                >
-                  <FileSpreadsheet size={14} /> Export Points CSV
-                </button>
-                <button
-                  className="menu-btn"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
-                  onClick={handleExportLinesCSV}
-                >
-                  <FileSpreadsheet size={14} /> Export Survey Lines CSV
-                </button>
-                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
-                <button
-                  className="menu-btn"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: '#10b981' }}
-                  onClick={handleExportDXF}
-                >
-                  <Download size={14} /> Export AutoCAD DXF (.dxf)
-                </button>
-                <button
-                  className="menu-btn"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: '#60a5fa' }}
-                  onClick={handleExportGeoJSON}
-                >
-                  <Download size={14} /> Export GIS GeoJSON (.geojson)
                 </button>
                 <button
                   className="menu-btn"
@@ -385,6 +432,66 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Download size={14} /> Export Vector Drawing (SVG)
                 </button>
+
+                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+
+                {/* Collapsed by default: Export to CAD / GIS */}
+                <button
+                  className="menu-btn"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    textAlign: 'left',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--text-bright)',
+                  }}
+                  onClick={() => setShowCadGisExports(!showCadGisExports)}
+                >
+                  <span>Export to CAD / GIS</span>
+                  <ChevronDown
+                    size={12}
+                    style={{
+                      transform: showCadGisExports ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 0.2s',
+                    }}
+                  />
+                </button>
+
+                {showCadGisExports && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingLeft: 8, borderLeft: '2px solid var(--accent-cyan)', marginTop: 2 }}>
+                    <button
+                      className="menu-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: '#10b981' }}
+                      onClick={handleExportDXF}
+                    >
+                      <Download size={14} /> Export AutoCAD DXF (.dxf)
+                    </button>
+                    <button
+                      className="menu-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: '#60a5fa' }}
+                      onClick={handleExportGeoJSON}
+                    >
+                      <Download size={14} /> Export GIS GeoJSON (.geojson)
+                    </button>
+                    <button
+                      className="menu-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
+                      onClick={handleExportPointsCSV}
+                    >
+                      <FileSpreadsheet size={14} /> Export Points CSV
+                    </button>
+                    <button
+                      className="menu-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
+                      onClick={handleExportLinesCSV}
+                    >
+                      <FileSpreadsheet size={14} /> Export Survey Lines CSV
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -426,15 +533,17 @@ export const Header: React.FC<HeaderProps> = ({
           {project.settings.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
         </button>
 
-        {/* Sketch-to-Survey Quick Button */}
-        <button
-          className="btn-secondary"
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', color: 'var(--accent-amber)', borderColor: 'rgba(245, 158, 11, 0.4)' }}
-          onClick={onOpenSketchModal}
-          title="Import rough sketch or field notebook page"
-        >
-          <Sparkles size={14} /> Sketch-to-Survey
-        </button>
+        {/* Sketch-to-Survey Quick Button (Advanced Mode) */}
+        {project.settings.uiMode === 'advanced' && (
+          <button
+            className="btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', color: 'var(--accent-amber)', borderColor: 'rgba(245, 158, 11, 0.4)' }}
+            onClick={onOpenSketchModal}
+            title="Import rough sketch or field notebook page"
+          >
+            <Sparkles size={14} /> Sketch-to-Survey
+          </button>
+        )}
 
         {/* Generate Report Quick Button */}
         <button

@@ -18,6 +18,7 @@ export interface ProjectSettings {
   linearUnit: LinearUnit;
   areaUnit: AreaUnit;
   angleFormat: AngleFormat;
+  uiMode: 'simple' | 'advanced';
   decimalPrecision: number; // 0 to 6
   snapTolerancePixels: number; // default 12px
   gridSpacingMeters: number; // default 5m

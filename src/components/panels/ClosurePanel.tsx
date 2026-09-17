@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useCAD } from '../../context/CADContext';
-import { formatNumber } from '../../survey/units';
+import { formatNumber, formatDistance } from '../../survey/units';
 import { adjustTraverseBowditch, adjustTraverseTransit } from '../../survey/traverse';
 import { AdjustTraverseCommand } from '../../commands/traverseCommands';
 import { TraverseAdjustmentResult } from '../../types/survey';
@@ -10,6 +10,9 @@ import { Check, Compass, Sliders, ArrowRight } from 'lucide-react';
 export const ClosurePanel: React.FC = () => {
   const { project, closureResult, executeCommand } = useCAD();
   const [previewResult, setPreviewResult] = useState<TraverseAdjustmentResult | null>(null);
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
+
+  const isSimple = project.settings.uiMode === 'simple';
 
   // Determine active ordered points in closed traverse or project
   const closedPoly = project.polygons.find((p) => p.isClosed && p.pointIds.length >= 3);
@@ -37,10 +40,76 @@ export const ClosurePanel: React.FC = () => {
     setPreviewResult(null);
   };
 
+  // If simple mode and not expanded, render single plain-language badge
+  if (isSimple && !isExpanded) {
+    if (activePoints.length < 3) {
+      return null;
+    }
+
+    const hasError = !closureResult.isAcceptable && closureResult.closureError > 0.05;
+    const errorDistStr = formatDistance(closureResult.closureError, project.settings.linearUnit, 2);
+
+    return (
+      <div
+        className="cad-table-card"
+        onClick={() => setIsExpanded(true)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsExpanded(true); }}
+        style={{
+          padding: '10px 14px',
+          cursor: 'pointer',
+          borderRadius: '6px',
+          background: hasError ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+          border: `1px solid ${hasError ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          transition: 'all 0.15s ease',
+          userSelect: 'none',
+        }}
+        title="Tap to view engineering closure details and traverse balancing"
+      >
+        <div style={{
+          fontSize: '12px',
+          fontWeight: '600',
+          color: hasError ? '#f59e0b' : '#10b981',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+        }}>
+          {hasError
+            ? `⚠ Boundary doesn't close — off by ${errorDistStr}, tap for details`
+            : '✓ Boundary closes correctly'}
+        </div>
+        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Details ▾</span>
+      </div>
+    );
+  }
+
   return (
     <div className="cad-table-card" style={{ padding: '12px' }}>
-      <div className="card-header" style={{ margin: '-12px -12px 10px -12px', padding: '8px 12px' }}>
+      <div
+        className="card-header"
+        style={{
+          margin: '-12px -12px 10px -12px',
+          padding: '8px 12px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <span>Traverse Closure Analysis (SDD §62 & §65)</span>
+        {isSimple && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '10px', padding: '2px 6px', height: 'auto' }}
+            onClick={() => setIsExpanded(false)}
+          >
+            Simple View ▴
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>

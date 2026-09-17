@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCAD, CADTool } from '../../context/CADContext';
 import {
   MousePointer,
@@ -13,6 +13,8 @@ import {
   MapPin,
   Compass,
   Sparkles,
+  Link2,
+  ChevronDown,
 } from 'lucide-react';
 import { getBoundingBox } from '../../geometry/polygon';
 import { fitToBounds } from '../../geometry/transform';
@@ -20,6 +22,7 @@ import { fitToBounds } from '../../geometry/transform';
 interface CADToolbarProps {
   onOpenCoordinateModal: () => void;
   onOpenTraverseModal: () => void;
+  onOpenChainSurveyModal: () => void;
   onOpenCurveModal: () => void;
   onOpenSketchModal: () => void;
 }
@@ -27,6 +30,7 @@ interface CADToolbarProps {
 export const CADToolbar: React.FC<CADToolbarProps> = ({
   onOpenCoordinateModal,
   onOpenTraverseModal,
+  onOpenChainSurveyModal,
   onOpenCurveModal,
   onOpenSketchModal,
 }) => {
@@ -40,6 +44,8 @@ export const CADToolbar: React.FC<CADToolbarProps> = ({
     project,
     setViewport,
   } = useCAD();
+
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
 
   const handleFit = () => {
     if (project.points.length === 0) return;
@@ -105,39 +111,109 @@ export const CADToolbar: React.FC<CADToolbarProps> = ({
         <MapPin size={18} />
       </button>
 
-      {/* 7. Traverse Input (Distance + Bearing) */}
+      {/* 7. Chain Survey (Tape Only, No Compass) - Always visible */}
       <button
         className="cad-tool-btn"
-        onClick={onOpenTraverseModal}
-        data-tooltip="Survey Traverse Input (T)"
+        onClick={onOpenChainSurveyModal}
+        data-tooltip="Chain Survey (Tape Only, No Compass)"
       >
-        <Compass size={18} />
+        <Link2 size={18} />
       </button>
 
-      {/* 8. Circular Curve / Arc */}
-      <button
-        className="cad-tool-btn"
-        onClick={onOpenCurveModal}
-        data-tooltip="Circular Curves & Arcs (3-Pt / Radius)"
-        style={{ color: '#38bdf8' }}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M 4 20 A 16 16 0 0 1 20 4" />
-          <circle cx="4" cy="20" r="2.5" fill="currentColor" />
-          <circle cx="20" cy="4" r="2.5" fill="currentColor" />
-          <circle cx="12" cy="7.5" r="1.5" fill="currentColor" />
-        </svg>
-      </button>
+      {/* Advanced Tools Gating: In Simple mode, collapse Traverse, Curves, and Sketch behind a toggle */}
+      {project.settings.uiMode === 'simple' ? (
+        <>
+          <button
+            className={`cad-tool-btn ${showAdvancedTools ? 'active' : ''}`}
+            onClick={() => setShowAdvancedTools(!showAdvancedTools)}
+            data-tooltip={showAdvancedTools ? 'Hide Advanced Tools' : 'Advanced Tools (Traverse, Curves, Sketch) ▾'}
+            style={{ color: showAdvancedTools ? 'var(--accent-cyan)' : 'var(--text-muted)' }}
+          >
+            <ChevronDown
+              size={16}
+              style={{
+                transform: showAdvancedTools ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.2s',
+              }}
+            />
+          </button>
 
-      {/* 9. Sketch-to-Survey */}
-      <button
-        className="cad-tool-btn"
-        style={{ color: 'var(--accent-amber)' }}
-        onClick={onOpenSketchModal}
-        data-tooltip="Sketch-to-Survey (Smart Import)"
-      >
-        <Sparkles size={18} />
-      </button>
+          {showAdvancedTools && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 0', borderLeft: '2px solid var(--accent-cyan)', marginLeft: 4 }}>
+              {/* Traverse Input (Distance + Bearing) */}
+              <button
+                className="cad-tool-btn"
+                onClick={onOpenTraverseModal}
+                data-tooltip="Survey Traverse Input (Distance + Bearing)"
+              >
+                <Compass size={18} />
+              </button>
+
+              {/* Circular Curve / Arc */}
+              <button
+                className="cad-tool-btn"
+                onClick={onOpenCurveModal}
+                data-tooltip="Circular Curves & Arcs (3-Pt / Radius)"
+                style={{ color: '#38bdf8' }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M 4 20 A 16 16 0 0 1 20 4" />
+                  <circle cx="4" cy="20" r="2.5" fill="currentColor" />
+                  <circle cx="20" cy="4" r="2.5" fill="currentColor" />
+                  <circle cx="12" cy="7.5" r="1.5" fill="currentColor" />
+                </svg>
+              </button>
+
+              {/* Sketch-to-Survey */}
+              <button
+                className="cad-tool-btn"
+                style={{ color: 'var(--accent-amber)' }}
+                onClick={onOpenSketchModal}
+                data-tooltip="Sketch-to-Survey (Smart Import)"
+              >
+                <Sparkles size={18} />
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        /* Advanced (Surveyor) Mode: all tools visible directly */
+        <>
+          {/* Traverse Input (Distance + Bearing) */}
+          <button
+            className="cad-tool-btn"
+            onClick={onOpenTraverseModal}
+            data-tooltip="Survey Traverse Input (T)"
+          >
+            <Compass size={18} />
+          </button>
+
+          {/* Circular Curve / Arc */}
+          <button
+            className="cad-tool-btn"
+            onClick={onOpenCurveModal}
+            data-tooltip="Circular Curves & Arcs (3-Pt / Radius)"
+            style={{ color: '#38bdf8' }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M 4 20 A 16 16 0 0 1 20 4" />
+              <circle cx="4" cy="20" r="2.5" fill="currentColor" />
+              <circle cx="20" cy="4" r="2.5" fill="currentColor" />
+              <circle cx="12" cy="7.5" r="1.5" fill="currentColor" />
+            </svg>
+          </button>
+
+          {/* Sketch-to-Survey */}
+          <button
+            className="cad-tool-btn"
+            style={{ color: 'var(--accent-amber)' }}
+            onClick={onOpenSketchModal}
+            data-tooltip="Sketch-to-Survey (Smart Import)"
+          >
+            <Sparkles size={18} />
+          </button>
+        </>
+      )}
 
       <div className="tool-group-divider" />
 

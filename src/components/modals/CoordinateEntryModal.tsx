@@ -77,36 +77,54 @@ export const CoordinateEntryModal: React.FC<CoordinateEntryModalProps> = ({ isOp
               />
             </div>
 
+            {project.settings.uiMode !== 'advanced' && (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+                Positions are measured from your starting corner (Origin 0, 0).
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div className="form-group">
-                <label className="form-label">Easting (X Coordinate, meters)</label>
+                <label className="form-label">
+                  {project.settings.uiMode !== 'advanced'
+                    ? 'Distance right (X) — Easting'
+                    : 'Easting (X Coordinate)'} ({project.settings.linearUnit})
+                </label>
                 <input
                   className="form-input"
                   type="number"
                   step="any"
                   value={easting}
                   onChange={(e) => { setEasting(e.target.value); setError(null); }}
-                  placeholder="e.g. 1000.000"
+                  placeholder="e.g. 10.00"
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Northing (Y Coordinate, meters)</label>
+                <label className="form-label">
+                  {project.settings.uiMode !== 'advanced'
+                    ? 'Distance up (Y) — Northing'
+                    : 'Northing (Y Coordinate)'} ({project.settings.linearUnit})
+                </label>
                 <input
                   className="form-input"
                   type="number"
                   step="any"
                   value={northing}
                   onChange={(e) => { setNorthing(e.target.value); setError(null); }}
-                  placeholder="e.g. 2000.000"
+                  placeholder="e.g. 20.00"
                   required
                 />
               </div>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Elevation / Z (Optional, meters)</label>
+              <label className="form-label">
+                {project.settings.uiMode !== 'advanced'
+                  ? 'Elevation / Height (Z, Optional)'
+                  : 'Elevation / Z (Optional)'} ({project.settings.linearUnit})
+              </label>
               <input
                 className="form-input"
                 type="number"

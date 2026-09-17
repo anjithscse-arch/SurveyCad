@@ -22,6 +22,7 @@ describe('AutoCAD ASCII DXF Generator', () => {
       linearUnit: 'm',
       areaUnit: 'sqm',
       angleFormat: 'deg',
+      uiMode: 'simple',
       decimalPrecision: 2,
       snapTolerancePixels: 14,
       gridSpacingMeters: 5,

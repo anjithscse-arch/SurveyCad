@@ -15,6 +15,7 @@ import { NewProjectModal } from '../modals/NewProjectModal';
 import { SettingsModal } from '../modals/SettingsModal';
 import { SketchToSurveyModal } from '../sketch/SketchToSurveyModal';
 import { CurveModal } from '../modals/CurveModal';
+import { ChainSurveyModal } from '../modals/ChainSurveyModal';
 import { useCAD } from '../../context/CADContext';
 
 export const CADLayout: React.FC = () => {
@@ -25,6 +26,7 @@ export const CADLayout: React.FC = () => {
   // Modals state
   const [isCoordModalOpen, setIsCoordModalOpen] = useState(false);
   const [isTraverseModalOpen, setIsTraverseModalOpen] = useState(false);
+  const [isChainSurveyModalOpen, setIsChainSurveyModalOpen] = useState(false);
   const [isCurveModalOpen, setIsCurveModalOpen] = useState(false);
   const [isCSVModalOpen, setIsCSVModalOpen] = useState(false);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
@@ -45,6 +47,7 @@ export const CADLayout: React.FC = () => {
         onOpenNewProjectModal={() => setIsNewProjectModalOpen(true)}
         onOpenCoordinateModal={() => setIsCoordModalOpen(true)}
         onOpenTraverseModal={() => setIsTraverseModalOpen(true)}
+        onOpenChainSurveyModal={() => setIsChainSurveyModalOpen(true)}
         onOpenCurveModal={() => setIsCurveModalOpen(true)}
         onOpenCSVImportModal={() => setIsCSVModalOpen(true)}
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
@@ -57,6 +60,7 @@ export const CADLayout: React.FC = () => {
         <CADToolbar
           onOpenCoordinateModal={() => setIsCoordModalOpen(true)}
           onOpenTraverseModal={() => setIsTraverseModalOpen(true)}
+          onOpenChainSurveyModal={() => setIsChainSurveyModalOpen(true)}
           onOpenCurveModal={() => setIsCurveModalOpen(true)}
           onOpenSketchModal={() => setIsSketchModalOpen(true)}
         />
@@ -123,6 +127,11 @@ export const CADLayout: React.FC = () => {
       <TraverseModal
         isOpen={isTraverseModalOpen}
         onClose={() => setIsTraverseModalOpen(false)}
+      />
+
+      <ChainSurveyModal
+        isOpen={isChainSurveyModalOpen}
+        onClose={() => setIsChainSurveyModalOpen(false)}
       />
 
       <CurveModal

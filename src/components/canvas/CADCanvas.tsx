@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useCAD } from '../../context/CADContext';
 import { GridRenderer } from './GridRenderer';
 import { GeometryRenderer } from './GeometryRenderer';
@@ -48,8 +48,22 @@ export const CADCanvas: React.FC = () => {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<Point2D>({ x: 0, y: 0 });
 
-  // Moving Point State
-  const [draggingPoint, setDraggingPoint] = useState<{ point: SurveyPoint; startPos: Point2D } | null>(null);
+  // Moving Point State (tracked locally during drag for smooth 60fps, committed on mouseUp)
+  const [draggingPoint, setDraggingPoint] = useState<{
+    point: SurveyPoint;
+    startPos: Point2D;
+    currentPos: Point2D;
+  } | null>(null);
+
+  // Draft points reflecting live drag without mutating project.points
+  const effectivePoints: SurveyPoint[] = useMemo(() => {
+    if (!draggingPoint) return project.points;
+    return project.points.map((p) =>
+      p.id === draggingPoint.point.id
+        ? { ...p, x: draggingPoint.currentPos.x, y: draggingPoint.currentPos.y }
+        : p
+    );
+  }, [project.points, draggingPoint]);
 
   // Multi-point creation chain (Polyline / Polygon)
   const [currentChainPointIds, setCurrentChainPointIds] = useState<string[]>([]);
@@ -157,7 +171,7 @@ export const CADCanvas: React.FC = () => {
     // 2. Handle Snapping
     let snap: SnapResult | null = null;
     if (project.settings.showSnapHalos) {
-      snap = findSnap(rawWorld, project.points, project.lines, viewport, {
+      snap = findSnap(rawWorld, effectivePoints, project.lines, viewport, {
         snapTolerancePixels: project.settings.snapTolerancePixels,
         enableGrid: project.settings.showGrid,
         gridSpacing: project.settings.gridSpacingMeters,
@@ -169,16 +183,19 @@ export const CADCanvas: React.FC = () => {
     const effectiveWorld = snap ? snap.point : rawWorld;
     setCursorWorld(effectiveWorld);
 
-    // 3. Handle Dragging Point
+    // 3. Handle Dragging Point (updates local draft state only, no project mutation)
     if (draggingPoint) {
-      // Update coordinates dynamically during drag
-      const nextPoints = project.points.map((p) =>
-        p.id === draggingPoint.point.id ? { ...p, x: effectiveWorld.x, y: effectiveWorld.y } : p
+      setDraggingPoint((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentPos: {
+                x: Math.round(effectiveWorld.x * 1000) / 1000,
+                y: Math.round(effectiveWorld.y * 1000) / 1000,
+              },
+            }
+          : null
       );
-      // Project is updated through state without pushing history until release
-      // to keep dragging smooth
-      project.points = nextPoints;
-      setViewport((v) => ({ ...v })); // Trigger re-render
       return;
     }
 
@@ -239,15 +256,16 @@ export const CADCanvas: React.FC = () => {
     }
 
     if (draggingPoint) {
-      const pt = project.points.find((p) => p.id === draggingPoint.point.id);
-      if (pt) {
-        // Execute the official Move command to store in history
+      const start = draggingPoint.startPos;
+      const end = draggingPoint.currentPos;
+      // Execute MovePointCommand once upon release if point position changed
+      if (Math.hypot(end.x - start.x, end.y - start.y) > 1e-4) {
         executeCommand(
           new MovePointCommand(
-            pt.id,
-            draggingPoint.startPos,
-            { x: pt.x, y: pt.y },
-            pt.label
+            draggingPoint.point.id,
+            start,
+            end,
+            draggingPoint.point.label
           )
         );
       }
@@ -256,7 +274,7 @@ export const CADCanvas: React.FC = () => {
   };
 
   // Handle Point Mouse Down (for selection & drag)
-  const handlePointMouseDown = (pt: SurveyPoint, e: React.MouseEvent) => {
+  const handlePointMouseDown = (pt: SurveyPoint, _e: React.MouseEvent) => {
     if (activeTool === 'polyline' || activeTool === 'polygon') {
       handleChainPointSelect(pt.id);
       return;
@@ -269,6 +287,7 @@ export const CADCanvas: React.FC = () => {
       setDraggingPoint({
         point: pt,
         startPos: { x: pt.x, y: pt.y },
+        currentPos: { x: pt.x, y: pt.y },
       });
     }
   };
@@ -384,7 +403,7 @@ export const CADCanvas: React.FC = () => {
     currentChainPointIds.length > 0 && rubberBandTarget
       ? (() => {
           const lastId = currentChainPointIds[currentChainPointIds.length - 1];
-          const lastPt = project.points.find((p) => p.id === lastId);
+          const lastPt = effectivePoints.find((p) => p.id === lastId);
           return lastPt ? { start: lastPt, current: rubberBandTarget } : null;
         })()
       : null;
@@ -416,7 +435,7 @@ export const CADCanvas: React.FC = () => {
 
         {/* Geometry (Polygons, Lines, Arcs, Points) */}
         <GeometryRenderer
-          points={project.points}
+          points={effectivePoints}
           lines={project.lines}
           arcs={project.arcs}
           polygons={project.polygons}
@@ -438,7 +457,7 @@ export const CADCanvas: React.FC = () => {
         {/* Dimension & Side Length Labels */}
         {project.settings.showDimensions && (
           <DimensionRenderer
-            points={project.points}
+            points={effectivePoints}
             lines={project.lines}
             arcs={project.arcs}
             polygons={project.polygons}

@@ -27,6 +27,7 @@ describe('Survey Traverse & Calculation Tests', () => {
       linearUnit: 'm',
       areaUnit: 'sqm',
       angleFormat: 'deg',
+      uiMode: 'simple',
       decimalPrecision: 2,
       snapTolerancePixels: 14,
       gridSpacingMeters: 5,
@@ -139,6 +140,41 @@ describe('Survey Traverse & Calculation Tests', () => {
     project = history.undo(project);
     expect(project.points.length).toBe(1);
     expect(project.points[0].id).toBe('p1');
+  });
+
+  it('confirms a dragged point can be undone with Ctrl+Z back to its pre-drag position', () => {
+    const history = new CommandHistory();
+    let project: SurveyCADProject = {
+      ...mockProject,
+      points: [{ id: 'pt_drag', label: 'P1', x: 10.0, y: 20.0 }],
+    };
+
+    // Verify initial pre-drag coordinates
+    expect(project.points[0].x).toBe(10.0);
+    expect(project.points[0].y).toBe(20.0);
+
+    // Simulate drag start at (10, 20) and drag release at (45.5, 60.25)
+    const dragStart = { x: 10.0, y: 20.0 };
+    const dragEnd = { x: 45.5, y: 60.25 };
+
+    // Dispatched on mouse release
+    const moveCmd = new MovePointCommand('pt_drag', dragStart, dragEnd, 'P1');
+    project = history.execute(moveCmd, project);
+
+    // Post-drag position
+    expect(project.points[0].x).toBe(45.5);
+    expect(project.points[0].y).toBe(60.25);
+    expect(history.canUndo).toBe(true);
+
+    // Undo (Ctrl+Z) restores exactly to pre-drag position
+    project = history.undo(project);
+    expect(project.points[0].x).toBe(10.0);
+    expect(project.points[0].y).toBe(20.0);
+
+    // Redo (Ctrl+Y) re-applies post-drag position
+    project = history.redo(project);
+    expect(project.points[0].x).toBe(45.5);
+    expect(project.points[0].y).toBe(60.25);
   });
 
   it('tests JSON Project Serialization and schema parsing', () => {

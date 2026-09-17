@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCAD } from '../../context/CADContext';
-import { formatNumber } from '../../survey/units';
-import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { formatNumber, LINEAR_TO_METERS } from '../../survey/units';
+import { AlertTriangle, CheckCircle2, ShieldAlert, ChevronDown, ChevronUp } from 'lucide-react';
 
 export const AreaResultPanel: React.FC = () => {
   const { areaResult, project } = useCAD();
+  const [showMoreUnits, setShowMoreUnits] = useState(false);
+
+  const isSimple = project.settings.uiMode === 'simple';
 
   if (!areaResult.isValid) {
     return (
@@ -21,6 +24,8 @@ export const AreaResultPanel: React.FC = () => {
       </div>
     );
   }
+
+  const sqUsFt = areaResult.sqMeters / (LINEAR_TO_METERS.usft * LINEAR_TO_METERS.usft);
 
   return (
     <div className="cad-table-card" style={{ padding: '12px' }}>
@@ -56,58 +61,44 @@ export const AreaResultPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Primary Compound Acre-Cent Callout */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(16, 185, 129, 0.12))',
-        border: '1px solid rgba(56, 189, 248, 0.3)',
-        borderRadius: 6,
-        padding: '10px 12px',
-        marginBottom: 12,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div>
-          <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
-            Cadastral Acre-Cent Notation
+      {/* In Advanced mode: show Cadastral Acre-Cent Callout at top */}
+      {!isSimple && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(16, 185, 129, 0.12))',
+          border: '1px solid rgba(56, 189, 248, 0.3)',
+          borderRadius: 6,
+          padding: '10px 12px',
+          marginBottom: 12,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <div>
+            <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+              Cadastral Acre-Cent Notation
+            </div>
+            <div style={{ fontSize: '17px', fontWeight: '800', fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>
+              {areaResult.acres >= 1
+                ? `${Math.floor(areaResult.acres)} Ac ${(areaResult.cents % 100).toFixed(2)} Cts`
+                : `${areaResult.cents.toFixed(2)} Cents`}
+            </div>
           </div>
-          <div style={{ fontSize: '17px', fontWeight: '800', fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>
-            {areaResult.acres >= 1
-              ? `${Math.floor(areaResult.acres)} Ac ${(areaResult.cents % 100).toFixed(2)} Cts`
-              : `${areaResult.cents.toFixed(2)} Cents`}
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Gunthas (1/40 ac)</div>
+            <div style={{ fontSize: '14px', fontWeight: '700', fontFamily: 'var(--font-mono)', color: '#10b981' }}>
+              {(areaResult.gunthas ?? (areaResult.acres * 40)).toFixed(2)} <span style={{ fontSize: '10px' }}>gth</span>
+            </div>
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Gunthas (1/40 ac)</div>
-          <div style={{ fontSize: '14px', fontWeight: '700', fontFamily: 'var(--font-mono)', color: '#10b981' }}>
-            {(areaResult.gunthas ?? (areaResult.acres * 40)).toFixed(2)} <span style={{ fontSize: '10px' }}>gth</span>
-          </div>
-        </div>
-      </div>
+      )}
 
-      {/* Multi-unit Area Breakdown Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: 12 }}>
+      {/* Primary Area Cards (m², ft², Acres in Simple mode; all units in Advanced mode) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: 10 }}>
         {/* Square Metres */}
-        <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+        <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-subtle)', gridColumn: isSimple ? 'span 2' : 'auto' }}>
           <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Square Metres</div>
-          <div style={{ fontSize: '15px', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
+          <div style={{ fontSize: isSimple ? '17px' : '15px', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
             {formatNumber(areaResult.sqMeters, project.settings.decimalPrecision)} <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>m²</span>
-          </div>
-        </div>
-
-        {/* Indian Cents */}
-        <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '8px 10px', borderRadius: 4, border: '1px solid rgba(56, 189, 248, 0.25)' }}>
-          <div style={{ fontSize: '10px', color: 'var(--accent-cyan)', fontWeight: '600' }}>Indian Cents (1/100 ac)</div>
-          <div style={{ fontSize: '15px', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
-            {formatNumber(areaResult.cents, 2)} <span style={{ fontSize: '11px' }}>cents</span>
-          </div>
-        </div>
-
-        {/* Acres */}
-        <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Acres</div>
-          <div style={{ fontSize: '13px', fontWeight: '600', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
-            {formatNumber(areaResult.acres, 4)} <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>ac</span>
           </div>
         </div>
 
@@ -119,22 +110,143 @@ export const AreaResultPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* Hectares */}
+        {/* Acres */}
         <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Hectares</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Acres</div>
           <div style={{ fontSize: '13px', fontWeight: '600', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
-            {formatNumber(areaResult.hectares, 4)} <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>ha</span>
+            {formatNumber(areaResult.acres, 4)} <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>ac</span>
           </div>
         </div>
 
-        {/* Square Yards */}
-        <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Square Yards</div>
-          <div style={{ fontSize: '13px', fontWeight: '600', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
-            {formatNumber(areaResult.sqYards, 2)} <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>yd²</span>
-          </div>
-        </div>
+        {/* Advanced Mode: Show Indian Cents, Hectares, Sq Yards, US Survey Feet directly */}
+        {!isSimple && (
+          <>
+            {/* Indian Cents */}
+            <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '8px 10px', borderRadius: 4, border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+              <div style={{ fontSize: '10px', color: 'var(--accent-cyan)', fontWeight: '600' }}>Indian Cents (1/100 ac)</div>
+              <div style={{ fontSize: '15px', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                {formatNumber(areaResult.cents, 2)} <span style={{ fontSize: '11px' }}>cents</span>
+              </div>
+            </div>
+
+            {/* Hectares */}
+            <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Hectares</div>
+              <div style={{ fontSize: '13px', fontWeight: '600', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
+                {formatNumber(areaResult.hectares, 4)} <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>ha</span>
+              </div>
+            </div>
+
+            {/* Square Yards */}
+            <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Square Yards</div>
+              <div style={{ fontSize: '13px', fontWeight: '600', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
+                {formatNumber(areaResult.sqYards, 2)} <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>yd²</span>
+              </div>
+            </div>
+
+            {/* US Survey Feet */}
+            <div style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>US Survey Feet</div>
+              <div style={{ fontSize: '13px', fontWeight: '600', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
+                {formatNumber(sqUsFt, 2)} <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>sq usft</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Simple Mode: Collapsible "More units ▾" Expander */}
+      {isSimple && (
+        <div style={{ marginBottom: 10 }}>
+          <button
+            type="button"
+            onClick={() => setShowMoreUnits(!showMoreUnits)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 4,
+              padding: '6px 10px',
+              fontSize: '11px',
+              fontWeight: 500,
+              color: 'var(--accent-cyan)',
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
+            }}
+          >
+            {showMoreUnits ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            <span>{showMoreUnits ? 'Fewer units ▴' : 'More units ▾ (Cents, Gunthas, Hectares, US Survey Feet)'}</span>
+          </button>
+
+          {showMoreUnits && (
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* Cadastral Acre-Cent Callout */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(16, 185, 129, 0.12))',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                borderRadius: 6,
+                padding: '8px 10px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+                <div>
+                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+                    Cadastral Acre-Cent
+                  </div>
+                  <div style={{ fontSize: '15px', fontWeight: '800', fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>
+                    {areaResult.acres >= 1
+                      ? `${Math.floor(areaResult.acres)} Ac ${(areaResult.cents % 100).toFixed(2)} Cts`
+                      : `${areaResult.cents.toFixed(2)} Cents`}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '9px', color: 'var(--text-muted)' }}>Gunthas</div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'var(--font-mono)', color: '#10b981' }}>
+                    {(areaResult.gunthas ?? (areaResult.acres * 40)).toFixed(2)} <span style={{ fontSize: '9px' }}>gth</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Expanded Units Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '6px 8px', borderRadius: 4, border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+                  <div style={{ fontSize: '9px', color: 'var(--accent-cyan)', fontWeight: '600' }}>Indian Cents</div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                    {formatNumber(areaResult.cents, 2)} <span style={{ fontSize: '9px' }}>cents</span>
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(0,0,0,0.25)', padding: '6px 8px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: '9px', color: 'var(--text-dim)' }}>Hectares</div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
+                    {formatNumber(areaResult.hectares, 4)} <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>ha</span>
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(0,0,0,0.25)', padding: '6px 8px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: '9px', color: 'var(--text-dim)' }}>Square Yards</div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
+                    {formatNumber(areaResult.sqYards, 2)} <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>yd²</span>
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(0,0,0,0.25)', padding: '6px 8px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: '9px', color: 'var(--text-dim)' }}>US Survey Feet</div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
+                    {formatNumber(sqUsFt, 2)} <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>sq usft</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Perimeter Breakdown */}
       <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px 10px', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

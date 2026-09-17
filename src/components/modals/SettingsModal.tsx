@@ -25,6 +25,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         </div>
 
         <div className="modal-body">
+          {/* Interface Mode: Simple vs Advanced (Surveyor) */}
+          <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(56, 189, 248, 0.08)', borderRadius: 6, border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#38bdf8' }}>
+                  Interface: {settings.uiMode === 'advanced' ? 'Advanced (Surveyor)' : 'Simple'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {settings.uiMode === 'advanced'
+                    ? 'All surveyor tools, bearings, and engineering closure panels visible by default.'
+                    : 'Streamlined for quick measurement. Advanced surveyor tools available on demand.'}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className={settings.uiMode !== 'advanced' ? 'btn-primary' : 'btn-secondary'}
+                  style={{ padding: '5px 12px', fontSize: 11 }}
+                  onClick={() => updateSettings({ uiMode: 'simple', showBearings: false })}
+                >
+                  Simple
+                </button>
+                <button
+                  type="button"
+                  className={settings.uiMode === 'advanced' ? 'btn-primary' : 'btn-secondary'}
+                  style={{ padding: '5px 12px', fontSize: 11 }}
+                  onClick={() => updateSettings({ uiMode: 'advanced', showBearings: true })}
+                >
+                  Advanced (Surveyor)
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Measurement Units */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div className="form-group">
