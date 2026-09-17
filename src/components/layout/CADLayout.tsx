@@ -62,6 +62,7 @@ export const CADLayout: React.FC = () => {
           onOpenTraverseModal={() => setIsTraverseModalOpen(true)}
           onOpenChainSurveyModal={() => setIsChainSurveyModalOpen(true)}
           onOpenCurveModal={() => setIsCurveModalOpen(true)}
+          onOpenCSVImportModal={() => setIsCSVModalOpen(true)}
           onOpenSketchModal={() => setIsSketchModalOpen(true)}
         />
 

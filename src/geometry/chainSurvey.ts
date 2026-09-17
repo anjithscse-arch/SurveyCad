@@ -326,6 +326,38 @@ export function arcRadiusFromChordAndMidOrdinate(chord: number, midOrdinate: num
 export interface SolvedChainArc {
   arcResult: ArcRadiusResult;
   isConvexOrOutward: boolean;
+  apex: Point2D;
+}
+
+/**
+ * Computes the apex (peak / midpoint of arc curve) for a solved circular arc.
+ */
+export function getArcApex(
+  p1: Point2D,
+  p2: Point2D,
+  cand: ArcRadiusResult,
+  radius: number
+): Point2D {
+  const chord = distance(p1, p2);
+  const midX = (p1.x + p2.x) / 2;
+  const midY = (p1.y + p2.y) / 2;
+  const h = distance(cand.center, { x: midX, y: midY });
+
+  if (h > 1e-7) {
+    return {
+      x: cand.center.x + ((midX - cand.center.x) / h) * radius,
+      y: cand.center.y + ((midY - cand.center.y) / h) * radius,
+    };
+  }
+
+  // Semicircle case (center equals midpoint of chord)
+  const dx = chord > 1e-9 ? (p2.x - p1.x) / chord : 0;
+  const dy = chord > 1e-9 ? (p2.y - p1.y) / chord : 0;
+  const sign = cand.isClockwise ? 1 : -1;
+  return {
+    x: midX - sign * radius * dy,
+    y: midY + sign * radius * dx,
+  };
 }
 
 /**
@@ -349,31 +381,8 @@ export function solveChainSurveyArc(
     throw new ChainSurveyError('Unable to solve circular arc for given chord and mid-ordinate');
   }
 
-  // Find the apex / peak of each candidate arc curve
-  const getApex = (cand: ArcRadiusResult): Point2D => {
-    const midX = (p1.x + p2.x) / 2;
-    const midY = (p1.y + p2.y) / 2;
-    const h = distance(cand.center, { x: midX, y: midY });
-
-    if (h > 1e-7) {
-      return {
-        x: cand.center.x + ((midX - cand.center.x) / h) * radius,
-        y: cand.center.y + ((midY - cand.center.y) / h) * radius,
-      };
-    }
-
-    // Semicircle case (center equals midpoint of chord)
-    const dx = (p2.x - p1.x) / chord;
-    const dy = (p2.y - p1.y) / chord;
-    const sign = cand.isClockwise ? 1 : -1;
-    return {
-      x: midX - sign * radius * dy,
-      y: midY + sign * radius * dx,
-    };
-  };
-
-  const apexA = getApex(candA);
-  const apexB = getApex(candB);
+  const apexA = getArcApex(p1, p2, candA, radius);
+  const apexB = getArcApex(p1, p2, candB, radius);
 
   const distA = distance(apexA, centroid);
   const distB = distance(apexB, centroid);
@@ -381,15 +390,16 @@ export function solveChainSurveyArc(
   // The apex with the larger distance from the polygon centroid bulges outward
   const candAIsOutward = distA >= distB;
 
-  if (bulge === 'outward') {
-    return {
-      arcResult: candAIsOutward ? candA : candB,
-      isConvexOrOutward: true,
-    };
-  } else {
-    return {
-      arcResult: candAIsOutward ? candB : candA,
-      isConvexOrOutward: false,
-    };
-  }
+  const chosenResult = bulge === 'outward'
+    ? (candAIsOutward ? candA : candB)
+    : (candAIsOutward ? candB : candA);
+  const chosenApex = bulge === 'outward'
+    ? (candAIsOutward ? apexA : apexB)
+    : (candAIsOutward ? apexB : apexA);
+
+  return {
+    arcResult: chosenResult,
+    isConvexOrOutward: bulge === 'outward',
+    apex: chosenApex,
+  };
 }

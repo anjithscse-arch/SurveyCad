@@ -198,17 +198,49 @@ input, button, select, textarea {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 52px;
+  width: 60px;
   background: var(--bg-panel-solid);
   border-right: 1px solid var(--border-subtle);
   padding: 10px 6px;
   z-index: 10;
+  overflow-y: auto;
+}
+
+.toolbar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.toolbar-section-label {
+  font-size: 7.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.15;
+  padding: 1px 0;
+  user-select: none;
+  width: 100%;
 }
 
 .tool-group-divider {
   height: 1px;
   background: var(--border-subtle);
   margin: 4px 2px;
+}
+
+.menu-section-header {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  padding: 4px 8px 2px 8px;
+  user-select: none;
 }
 
 .cad-tool-btn {

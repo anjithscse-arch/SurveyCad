@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useCAD } from '../../context/CADContext';
 import {
   solveChainSurvey,
@@ -7,6 +7,7 @@ import {
   solveChainSurveyArc,
   ChainSurveyError,
   ChainSurveyTie,
+  SolvedChainArc,
 } from '../../geometry/chainSurvey';
 import {
   buildChainSurveyPoints,
@@ -61,8 +62,10 @@ export const ChainSurveyModal: React.FC<ChainSurveyModalProps> = ({ isOpen, onCl
   ]);
   const [ties, setTies] = useState<TieInput[]>(() => createDefaultTies(4));
   const [flippedCorners, setFlippedCorners] = useState<Record<number, boolean>>({});
+  const [draggingSideIndex, setDraggingSideIndex] = useState<number | null>(null);
   const [showHelp, setShowHelp] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
 
   // Handle changing number of sides (3 to 12)
   const handleSidesCountChange = (n: number) => {
@@ -87,6 +90,7 @@ export const ChainSurveyModal: React.FC<ChainSurveyModalProps> = ({ isOpen, onCl
       return next.slice(0, needed);
     });
     setFlippedCorners({});
+    setDraggingSideIndex(null);
     setSubmitError(null);
   };
 
@@ -147,14 +151,27 @@ export const ChainSurveyModal: React.FC<ChainSurveyModalProps> = ({ isOpen, onCl
       let adjustedPerimeterM = basePerimeterM;
       let hasCurved = false;
 
+      const solvedArcs: {
+        sideIndex: number;
+        p1: Point2D;
+        p2: Point2D;
+        midX: number;
+        midY: number;
+        solvedArc: SolvedChainArc | null;
+        apex: Point2D;
+      }[] = [];
+
       for (let i = 0; i < numSides; i++) {
         const sideCfg = sides[i];
+        const p1 = solution.points[i];
+        const p2 = solution.points[(i + 1) % numSides];
+        const midX = (p1.x + p2.x) / 2;
+        const midY = (p1.y + p2.y) / 2;
+
         if (sideCfg.curveType !== 'straight') {
           const mVal = parseFloat(sideCfg.midOrdinate);
           if (!isNaN(mVal) && mVal > 0) {
             const mMeters = convertDistance(mVal, unit, 'm');
-            const p1 = solution.points[i];
-            const p2 = solution.points[(i + 1) % numSides];
             const solvedArc = solveChainSurveyArc(p1, p2, mMeters, sideCfg.curveType, centroid);
             const segArea = circularSegmentArea(
               solvedArc.arcResult.radius,
@@ -169,6 +186,26 @@ export const ChainSurveyModal: React.FC<ChainSurveyModalProps> = ({ isOpen, onCl
             adjustedPerimeterM +=
               solvedArc.arcResult.arcLength - solvedArc.arcResult.chordLength;
             hasCurved = true;
+
+            solvedArcs.push({
+              sideIndex: i,
+              p1,
+              p2,
+              midX,
+              midY,
+              solvedArc,
+              apex: solvedArc.apex,
+            });
+          } else {
+            solvedArcs.push({
+              sideIndex: i,
+              p1,
+              p2,
+              midX,
+              midY,
+              solvedArc: null,
+              apex: { x: midX, y: midY },
+            });
           }
         }
       }
@@ -177,6 +214,7 @@ export const ChainSurveyModal: React.FC<ChainSurveyModalProps> = ({ isOpen, onCl
         success: true as const,
         points: solution.points,
         ambiguousCorners: solution.ambiguousCorners,
+        solvedArcs,
         centroid,
         baseAreaM2,
         adjustedAreaM2: Math.max(0, adjustedAreaM2),
@@ -193,6 +231,80 @@ export const ChainSurveyModal: React.FC<ChainSurveyModalProps> = ({ isOpen, onCl
       };
     }
   }, [numSides, sides, ties, flippedCorners, unit]);
+
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (draggingSideIndex === null || !livePreview?.success) return;
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+
+    const sideCfg = sides[draggingSideIndex];
+    if (!sideCfg || sideCfg.curveType === 'straight') return;
+
+    const p1 = livePreview.points[draggingSideIndex];
+    const p2 = livePreview.points[(draggingSideIndex + 1) % numSides];
+    if (!p1 || !p2) return;
+
+    const svgRect = svgEl.getBoundingClientRect();
+    if (svgRect.width === 0 || svgRect.height === 0) return;
+
+    const svgW = 600;
+    const svgH = 220;
+    const pad = 28;
+
+    const xs = livePreview.points.map((p) => p.x);
+    const ys = livePreview.points.map((p) => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const spanX = Math.max(maxX - minX, 0.001);
+    const spanY = Math.max(maxY - minY, 0.001);
+    const availW = svgW - pad * 2;
+    const availH = svgH - pad * 2;
+    const scale = Math.min(availW / spanX, availH / spanY);
+
+    const mx = ((e.clientX - svgRect.left) / svgRect.width) * svgW;
+    const my = ((e.clientY - svgRect.top) / svgRect.height) * svgH;
+
+    const worldMouseX = minX + (mx - pad - (availW - spanX * scale) / 2) / scale;
+    const worldMouseY = minY + ((svgH - my) - pad - (availH - spanY * scale) / 2) / scale;
+
+    const midX = (p1.x + p2.x) / 2;
+    const midY = (p1.y + p2.y) / 2;
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const chordLen = Math.hypot(dx, dy);
+    if (chordLen < 1e-7) return;
+
+    const normA = { x: -dy / chordLen, y: dx / chordLen };
+    const normB = { x: dy / chordLen, y: -dx / chordLen };
+    const distA = Math.hypot(midX + normA.x - livePreview.centroid.x, midY + normA.y - livePreview.centroid.y);
+    const distB = Math.hypot(midX + normB.x - livePreview.centroid.x, midY + normB.y - livePreview.centroid.y);
+    const normOutward = distA >= distB ? normA : normB;
+    const normInward = distA >= distB ? normB : normA;
+    const targetNorm = sideCfg.curveType === 'outward' ? normOutward : normInward;
+
+    const vx = worldMouseX - midX;
+    const vy = worldMouseY - midY;
+    const projMeters = vx * targetNorm.x + vy * targetNorm.y;
+    const clampedMeters = Math.max(0, projMeters);
+    const inUnit = convertDistance(clampedMeters, 'm', unit);
+
+    handleSideChange(draggingSideIndex, {
+      midOrdinate: inUnit > 0.001 ? inUnit.toFixed(2) : '',
+    });
+  };
+
+  const handlePointerUp = () => {
+    setDraggingSideIndex(null);
+  };
+
+  const handleHandlePointerDown = (sideIdx: number, e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    setDraggingSideIndex(sideIdx);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -687,8 +799,18 @@ export const ChainSurveyModal: React.FC<ChainSurveyModalProps> = ({ isOpen, onCl
                             }}
                           >
                             <svg
+                              ref={svgRef}
                               viewBox={`0 0 ${svgW} ${svgH}`}
-                              style={{ width: '100%', height: '100%', display: 'block' }}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                display: 'block',
+                                touchAction: 'none',
+                                userSelect: 'none',
+                              }}
+                              onPointerMove={handlePointerMove}
+                              onPointerUp={handlePointerUp}
+                              onPointerLeave={handlePointerUp}
                             >
                               {/* Background grid pattern */}
                               <defs>
@@ -728,6 +850,115 @@ export const ChainSurveyModal: React.FC<ChainSurveyModalProps> = ({ isOpen, onCl
                                 strokeWidth="2"
                                 strokeLinejoin="round"
                               />
+
+                              {/* Curved Side Edges, Mid-ordinate Lines & Draggable Handles */}
+                              {livePreview.solvedArcs.map((arc) => {
+                                const s1 = screenPoints[arc.sideIndex];
+                                const s2 = screenPoints[(arc.sideIndex + 1) % numSides];
+                                const sMid = toScreen({ x: arc.midX, y: arc.midY });
+                                const sApex = toScreen(arc.apex);
+                                const isDragging = draggingSideIndex === arc.sideIndex;
+                                const sideCfg = sides[arc.sideIndex];
+
+                                let arcPathD: string | null = null;
+                                if (arc.solvedArc) {
+                                  const rScreen = arc.solvedArc.arcResult.radius * scale;
+                                  const largeArc = arc.solvedArc.arcResult.deltaRad > Math.PI ? 1 : 0;
+                                  const cross = (s2.x - s1.x) * (sApex.y - s1.y) - (s2.y - s1.y) * (sApex.x - s1.x);
+                                  const sweep = cross > 0 ? 1 : 0;
+                                  arcPathD = `M ${s1.x} ${s1.y} A ${rScreen} ${rScreen} 0 ${largeArc} ${sweep} ${s2.x} ${s2.y}`;
+                                }
+
+                                return (
+                                  <g key={`curved-side-${arc.sideIndex}`}>
+                                    {/* Curved arc boundary line */}
+                                    {arcPathD && (
+                                      <>
+                                        {/* Optional chord dashed reference line */}
+                                        <line
+                                          x1={s1.x}
+                                          y1={s1.y}
+                                          x2={s2.x}
+                                          y2={s2.y}
+                                          stroke="rgba(255,255,255,0.25)"
+                                          strokeWidth="1"
+                                          strokeDasharray="3 3"
+                                        />
+                                        <path
+                                          d={arcPathD}
+                                          fill={sideCfg?.curveType === 'outward' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(15, 23, 42, 0.5)'}
+                                          stroke="#f59e0b"
+                                          strokeWidth="2.5"
+                                          strokeLinecap="round"
+                                        />
+                                      </>
+                                    )}
+
+                                    {/* Perpendicular mid-ordinate dashed indicator */}
+                                    {(arc.solvedArc || isDragging) && (
+                                      <line
+                                        x1={sMid.x}
+                                        y1={sMid.y}
+                                        x2={sApex.x}
+                                        y2={sApex.y}
+                                        stroke="#f59e0b"
+                                        strokeWidth="1.5"
+                                        strokeDasharray="2 2"
+                                        opacity="0.8"
+                                      />
+                                    )}
+
+                                    {/* Draggable Apex Handle */}
+                                    <g
+                                      onPointerDown={(e) => handleHandlePointerDown(arc.sideIndex, e)}
+                                      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+                                    >
+                                      {/* Generous hit target for easy touch/mouse grabbing */}
+                                      <circle cx={sApex.x} cy={sApex.y} r={16} fill="transparent" />
+                                      {/* Outer halo */}
+                                      <circle
+                                        cx={sApex.x}
+                                        cy={sApex.y}
+                                        r={isDragging ? 8 : 6}
+                                        fill={isDragging ? 'rgba(245, 158, 11, 0.45)' : 'rgba(245, 158, 11, 0.25)'}
+                                        stroke="#f59e0b"
+                                        strokeWidth={isDragging ? 2 : 1.5}
+                                      />
+                                      {/* Inner solid pip */}
+                                      <circle cx={sApex.x} cy={sApex.y} r={2.5} fill="#f59e0b" />
+                                    </g>
+
+                                    {/* Value badge / hint text above handle */}
+                                    {sideCfg?.midOrdinate ? (
+                                      <text
+                                        x={sApex.x}
+                                        y={sApex.y - 10}
+                                        textAnchor="middle"
+                                        fill="#f59e0b"
+                                        fontSize="10"
+                                        fontWeight="700"
+                                        fontFamily="var(--font-mono)"
+                                        style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                      >
+                                        {sideCfg.midOrdinate} {unitLabel}
+                                      </text>
+                                    ) : (
+                                      <text
+                                        x={sApex.x}
+                                        y={sApex.y - 10}
+                                        textAnchor="middle"
+                                        fill="rgba(245, 158, 11, 0.85)"
+                                        fontSize="9"
+                                        fontWeight="500"
+                                        fontFamily="var(--font-mono)"
+                                        style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                      >
+                                        ↕ Drag curve
+                                      </text>
+                                    )}
+                                  </g>
+                                );
+                              })}
 
                               {/* Vertex markers & labels */}
                               {screenPoints.map((sp, pIdx) => (

@@ -6,6 +6,8 @@ import {
   arcRadiusFromChordAndMidOrdinate,
   ChainSurveyError,
   ChainSurveyTie,
+  solveChainSurveyArc,
+  getArcApex,
 } from '../geometry/chainSurvey';
 import { polygonArea } from '../geometry/polygon';
 import { distance } from '../geometry/distance';
@@ -311,4 +313,83 @@ describe('Chain Survey (Tape-Only Boundary Reconstruction)', () => {
     expect(flippedResult.points[2].x).toBeCloseTo(alternate.x, 6);
     expect(flippedResult.points[2].y).toBeCloseTo(alternate.y, 6);
   });
+
+  // Test 14: Drag-simulated apex calculation produces identical arc geometry to typed input
+  it('verifies drag-simulated apex calculation produces identical arc geometry to typed input', () => {
+    const p1 = { x: 5, y: 10 };
+    const p2 = { x: 25, y: 10 }; // Chord length = 20
+    const centroid = { x: 15, y: 20 }; // Centroid is at y > 10
+    const typedMidOrdinate = 3.5;
+
+    // 1. Solve arc with typed mid-ordinate (outward: bulges away from centroid, so y < 10)
+    const typedArc = solveChainSurveyArc(p1, p2, typedMidOrdinate, 'outward', centroid);
+
+    expect(typedArc.apex).toBeDefined();
+    expect(typedArc.apex.x).toBeCloseTo(15, 6);
+    expect(typedArc.apex.y).toBeCloseTo(10 - typedMidOrdinate, 6); // 6.5
+    expect(typedArc.isConvexOrOutward).toBe(true);
+
+    // 2. Simulate dragging handle in the preview canvas:
+    // Mouse cursor at apex position in world coordinates
+    const mouseWorld = { x: typedArc.apex.x, y: typedArc.apex.y };
+
+    // Drag projection logic identical to ChainSurveyModal handlePointerMove
+    const midX = (p1.x + p2.x) / 2;
+    const midY = (p1.y + p2.y) / 2;
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const chordLen = Math.hypot(dx, dy);
+    expect(chordLen).toBeCloseTo(20, 6);
+
+    const normA = { x: -dy / chordLen, y: dx / chordLen };
+    const normB = { x: dy / chordLen, y: -dx / chordLen };
+    const distA = Math.hypot(midX + normA.x - centroid.x, midY + normA.y - centroid.y);
+    const distB = Math.hypot(midX + normB.x - centroid.x, midY + normB.y - centroid.y);
+    const normOutward = distA >= distB ? normA : normB;
+    const normInward = distA >= distB ? normB : normA;
+
+    // Normal vector pointing outward
+    expect(normOutward.y).toBeLessThan(0); // Points downward, away from centroid
+
+    const targetNorm = normOutward;
+    const vx = mouseWorld.x - midX;
+    const vy = mouseWorld.y - midY;
+    const projDistance = Math.max(0, vx * targetNorm.x + vy * targetNorm.y);
+
+    // Projected distance must match typed mid-ordinate exactly
+    expect(projDistance).toBeCloseTo(typedMidOrdinate, 8);
+
+    // 3. Solving arc using the projected drag distance reproduces exact same geometry
+    const dragArc = solveChainSurveyArc(p1, p2, projDistance, 'outward', centroid);
+    expect(dragArc.arcResult.radius).toBeCloseTo(typedArc.arcResult.radius, 8);
+    expect(dragArc.arcResult.deltaRad).toBeCloseTo(typedArc.arcResult.deltaRad, 8);
+    expect(dragArc.arcResult.center.x).toBeCloseTo(typedArc.arcResult.center.x, 8);
+    expect(dragArc.arcResult.center.y).toBeCloseTo(typedArc.arcResult.center.y, 8);
+    expect(dragArc.arcResult.arcLength).toBeCloseTo(typedArc.arcResult.arcLength, 8);
+    expect(dragArc.apex.x).toBeCloseTo(typedArc.apex.x, 8);
+    expect(dragArc.apex.y).toBeCloseTo(typedArc.apex.y, 8);
+
+    // 4. Test lateral movement tolerance: user drags sideways along the chord while dragging
+    const mouseWithLateralShift = { x: typedArc.apex.x + 4.2, y: typedArc.apex.y };
+    const vxShift = mouseWithLateralShift.x - midX;
+    const vyShift = mouseWithLateralShift.y - midY;
+    const projWithShift = Math.max(0, vxShift * targetNorm.x + vyShift * targetNorm.y);
+    expect(projWithShift).toBeCloseTo(typedMidOrdinate, 8);
+
+    // 5. Test inward curve drag simulation
+    const typedInward = solveChainSurveyArc(p1, p2, 2.0, 'inward', centroid);
+    const mouseInward = { x: typedInward.apex.x, y: typedInward.apex.y };
+    const vxIn = mouseInward.x - midX;
+    const vyIn = mouseInward.y - midY;
+    const projInward = Math.max(0, vxIn * normInward.x + vyIn * normInward.y);
+    expect(projInward).toBeCloseTo(2.0, 8);
+
+    // 6. Test clamping: dragging past the chord (into opposite side) clamps to 0
+    const mouseOpposite = { x: midX, y: midY + 5.0 }; // Moving toward centroid when mode is outward
+    const vxOpp = mouseOpposite.x - midX;
+    const vyOpp = mouseOpposite.y - midY;
+    const projOpp = Math.max(0, vxOpp * targetNorm.x + vyOpp * targetNorm.y);
+    expect(projOpp).toBe(0);
+  });
 });
+

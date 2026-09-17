@@ -6,14 +6,12 @@ import {
   FolderOpen,
   Save,
   FileSpreadsheet,
-  Settings,
   FilePlus,
   Compass,
   MapPin,
   Hexagon,
   Sun,
   Moon,
-  Check,
   Sparkles,
   Link2,
   ChevronDown,
@@ -271,6 +269,46 @@ export const Header: React.FC<HeaderProps> = ({
                   gap: 2,
                 }}
               >
+                {/* 1. Tape / Chain */}
+                <div className="menu-section-header">Tape / Chain</div>
+                <button
+                  className="menu-btn"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
+                  onClick={() => { onOpenChainSurveyModal(); closeMenu(); }}
+                >
+                  <Link2 size={14} /> Chain Survey (Tape Only, No Compass)...
+                </button>
+
+                {/* In Advanced Mode, render Angle & Bearing directly */}
+                {project.settings.uiMode !== 'simple' && (
+                  <>
+                    <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+                    <div className="menu-section-header">Angle & Bearing</div>
+                    <button
+                      className="menu-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
+                      onClick={() => { onOpenTraverseModal(); closeMenu(); }}
+                    >
+                      <Compass size={14} /> Add Traverse Leg...
+                    </button>
+                    <button
+                      className="menu-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: '#38bdf8' }}
+                      onClick={() => { onOpenCurveModal(); closeMenu(); }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M 4 20 A 16 16 0 0 1 20 4" />
+                        <circle cx="4" cy="20" r="2.5" fill="currentColor" />
+                        <circle cx="20" cy="4" r="2.5" fill="currentColor" />
+                      </svg>
+                      Circular Curves & Arcs...
+                    </button>
+                  </>
+                )}
+
+                {/* 3. Coordinates */}
+                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+                <div className="menu-section-header">Coordinates</div>
                 <button
                   className="menu-btn"
                   style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
@@ -281,10 +319,14 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   className="menu-btn"
                   style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
-                  onClick={() => { onOpenChainSurveyModal(); closeMenu(); }}
+                  onClick={() => { onOpenCSVImportModal(); closeMenu(); }}
                 >
-                  <Link2 size={14} /> Chain Survey (Tape Only, No Compass)...
+                  <FileSpreadsheet size={14} /> Import Points from CSV...
                 </button>
+
+                {/* 4. Draw */}
+                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+                <div className="menu-section-header">Draw</div>
                 <button
                   className="menu-btn"
                   style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
@@ -292,17 +334,24 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Hexagon size={14} /> Close Boundary Polygon
                 </button>
-                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
-                <button
-                  className="menu-btn"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
-                  onClick={() => { onOpenCSVImportModal(); closeMenu(); }}
-                >
-                  <FileSpreadsheet size={14} /> Import Points from CSV...
-                </button>
 
-                {/* Advanced Survey Tools gating */}
-                {project.settings.uiMode === 'simple' ? (
+                {/* 5. Smart Import (in Advanced Mode) */}
+                {project.settings.uiMode !== 'simple' && (
+                  <>
+                    <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+                    <div className="menu-section-header">Smart Import</div>
+                    <button
+                      className="menu-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: 'var(--accent-amber)' }}
+                      onClick={() => { onOpenSketchModal(); closeMenu(); }}
+                    >
+                      <Sparkles size={14} /> Sketch-to-Survey (Smart Import)...
+                    </button>
+                  </>
+                )}
+
+                {/* Advanced Survey Tools gating in Simple mode */}
+                {project.settings.uiMode === 'simple' && (
                   <>
                     <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
                     <button
@@ -330,6 +379,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </button>
                     {showAdvancedSurvey && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingLeft: 8, borderLeft: '2px solid var(--accent-cyan)', marginTop: 2 }}>
+                        <div className="menu-section-header">Angle & Bearing</div>
                         <button
                           className="menu-btn"
                           style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
@@ -349,6 +399,8 @@ export const Header: React.FC<HeaderProps> = ({
                           </svg>
                           Circular Curves & Arcs...
                         </button>
+                        <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+                        <div className="menu-section-header">Smart Import</div>
                         <button
                           className="menu-btn"
                           style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: 'var(--accent-amber)' }}
@@ -358,36 +410,6 @@ export const Header: React.FC<HeaderProps> = ({
                         </button>
                       </div>
                     )}
-                  </>
-                ) : (
-                  <>
-                    <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
-                    <button
-                      className="menu-btn"
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left' }}
-                      onClick={() => { onOpenTraverseModal(); closeMenu(); }}
-                    >
-                      <Compass size={14} /> Add Traverse Leg...
-                    </button>
-                    <button
-                      className="menu-btn"
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: '#38bdf8' }}
-                      onClick={() => { onOpenCurveModal(); closeMenu(); }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M 4 20 A 16 16 0 0 1 20 4" />
-                        <circle cx="4" cy="20" r="2.5" fill="currentColor" />
-                        <circle cx="20" cy="4" r="2.5" fill="currentColor" />
-                      </svg>
-                      Circular Curves & Arcs...
-                    </button>
-                    <button
-                      className="menu-btn"
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', color: 'var(--accent-amber)' }}
-                      onClick={() => { onOpenSketchModal(); closeMenu(); }}
-                    >
-                      <Sparkles size={14} /> Sketch-to-Survey (Smart Import)...
-                    </button>
                   </>
                 )}
               </div>
