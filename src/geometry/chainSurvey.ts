@@ -10,45 +10,71 @@ export class ChainSurveyError extends Error {
 }
 
 /**
- * Returns the number of diagonals needed from Point 1 for an n-sided polygon.
- * An n-sided polygon requires exactly n - 3 diagonals.
+ * A tie-line measurement connecting any two non-adjacent corners.
+ * Corner indices are 0-based: 0 corresponds to P1, 1 to P2, etc.
  */
-export function diagonalsNeeded(n: number): number {
-  return Math.max(0, n - 3);
-}
-
-export interface ChainSurveyResult {
-  points: Point2D[];
+export interface ChainSurveyTie {
+  from: number;
+  to: number;
+  distance: number;
 }
 
 /**
- * Solves a closed polygon boundary using fan triangulation from station P1.
- *
- * @param sides Array of n boundary side lengths:
- *              sides[0]: P1 -> P2
- *              sides[1]: P2 -> P3
- *              ...
- *              sides[n-2]: P(n-1) -> Pn
- *              sides[n-1]: Pn -> P1 (closing side)
- * @param diagonals Array of (n - 3) diagonal lengths from P1:
- *                  diagonals[0]: P1 -> P3
- *                  diagonals[1]: P1 -> P4
- *                  ...
- *                  diagonals[n-4]: P1 -> P(n-1)
- *
- * @returns Object with reconstructed 2D points [P1, P2, ..., Pn].
+ * Represents a corner whose position was solved via Law of Cosines
+ * having two distinct geometric candidate solutions.
  */
-export function solveChainSurvey(sides: number[], diagonals: number[]): ChainSurveyResult {
+export interface AmbiguousCorner {
+  pointIndex: number;
+  candidates: [Point2D, Point2D];
+  chosenIndex: 0 | 1;
+}
+
+/**
+ * Returns the number of ties needed for an n-sided polygon.
+ * An n-sided polygon requires exactly n - 3 ties.
+ */
+export function tiesNeeded(n: number): number {
+  return Math.max(0, n - 3);
+}
+
+// Backward-compatible alias for existing imports
+export const diagonalsNeeded = tiesNeeded;
+
+export interface ChainSurveyResult {
+  points: Point2D[];
+  ambiguousCorners: AmbiguousCorner[];
+}
+
+/**
+ * Solves a closed polygon boundary using consecutive boundary side lengths
+ * and arbitrary point-to-point ties (or legacy fan diagonals).
+ *
+ * @param sides Array of n boundary side lengths (P1->P2, P2->P3, ..., Pn->P1).
+ * @param ties Array of (n - 3) tie measurements connecting non-adjacent corners,
+ *             or legacy number[] diagonals from P1.
+ * @param flips Optional record, array, or set of 0-based point indices where
+ *              the user has toggled to the alternate candidate solution.
+ *
+ * @returns ChainSurveyResult with reconstructed points and ambiguous corner candidates.
+ */
+export function solveChainSurvey(
+  sides: number[],
+  ties: ChainSurveyTie[] | number[],
+  flips?: Record<number, boolean> | number[] | Set<number>
+): ChainSurveyResult {
   const n = sides.length;
 
   if (n < 3) {
     throw new ChainSurveyError(`A polygon boundary must have at least 3 sides (received ${n})`);
   }
 
-  const expectedDiagonals = diagonalsNeeded(n);
-  if (diagonals.length !== expectedDiagonals) {
+  const expectedTies = tiesNeeded(n);
+  if (!Array.isArray(ties)) {
+    throw new ChainSurveyError('Ties must be provided as an array');
+  }
+  if (ties.length !== expectedTies) {
     throw new ChainSurveyError(
-      `Expected ${expectedDiagonals} diagonal${expectedDiagonals === 1 ? '' : 's'} for a ${n}-sided polygon, but received ${diagonals.length}`
+      `Expected ${expectedTies} tie${expectedTies === 1 ? '' : 's'} for a ${n}-sided polygon, but received ${ties.length}`
     );
   }
 
@@ -59,12 +85,53 @@ export function solveChainSurvey(sides: number[], diagonals: number[]): ChainSur
     }
   }
 
-  for (let i = 0; i < diagonals.length; i++) {
-    const d = diagonals[i];
-    if (typeof d !== 'number' || isNaN(d) || d <= 0 || !isFinite(d)) {
-      throw new ChainSurveyError(`Diagonal P1->P${i + 3} must be a positive number (received ${d})`);
+  // Normalize legacy number[] array where ties[k-2] is a diagonal from P1 (index 0) to P(k+1) (index k)
+  const normalizedTies: ChainSurveyTie[] = ties.map((t, idx) => {
+    if (typeof t === 'number') {
+      if (isNaN(t) || t <= 0 || !isFinite(t)) {
+        throw new ChainSurveyError(`Diagonal P1->P${idx + 3} must be a positive number (received ${t})`);
+      }
+      return { from: 0, to: idx + 2, distance: t };
+    }
+    return t;
+  });
+
+  for (let i = 0; i < normalizedTies.length; i++) {
+    const t = normalizedTies[i];
+    if (typeof t.distance !== 'number' || isNaN(t.distance) || t.distance <= 0 || !isFinite(t.distance)) {
+      throw new ChainSurveyError(`Tie ${i + 1} distance must be a positive number (received ${t.distance})`);
+    }
+    if (t.from === t.to) {
+      throw new ChainSurveyError(`Tie ${i + 1} cannot connect corner P${t.from + 1} to itself`);
+    }
+    if (t.from < 0 || t.from >= n || t.to < 0 || t.to >= n) {
+      throw new ChainSurveyError(`Tie ${i + 1} references invalid corner indices (0 to ${n - 1})`);
     }
   }
+
+  const isFlipped = (pointIdx: number): boolean => {
+    if (!flips) return false;
+    if (Array.isArray(flips)) return flips.includes(pointIdx);
+    if (flips instanceof Set) return flips.has(pointIdx);
+    return Boolean(flips[pointIdx]);
+  };
+
+  // Helper to determine the dominant turn direction of previously placed corners
+  const getMajorityTurnSign = (currentPoints: Point2D[]): number => {
+    let sumSign = 0;
+    for (let j = 1; j < currentPoints.length - 1; j++) {
+      const vInX = currentPoints[j].x - currentPoints[j - 1].x;
+      const vInY = currentPoints[j].y - currentPoints[j - 1].y;
+      const vOutX = currentPoints[j + 1].x - currentPoints[j].x;
+      const vOutY = currentPoints[j + 1].y - currentPoints[j].y;
+      const cp = vInX * vOutY - vInY * vOutX;
+      if (Math.abs(cp) > 1e-9) {
+        sumSign += Math.sign(cp);
+      }
+    }
+    // Default bias is +1 (counter-clockwise / left turn)
+    return sumSign >= 0 ? 1 : -1;
+  };
 
   // P1 is placed at the origin (0, 0)
   const points: Point2D[] = [{ x: 0, y: 0 }];
@@ -72,72 +139,177 @@ export function solveChainSurvey(sides: number[], diagonals: number[]): ChainSur
   // P2 is placed along the positive X-axis (baseline)
   points.push({ x: sides[0], y: 0 });
 
-  // Array storing straight-line distance from P1 to each vertex
-  const dist1: number[] = new Array(n).fill(0);
-  dist1[0] = 0;
-  dist1[1] = sides[0];
+  const ambiguousCorners: AmbiguousCorner[] = [];
 
-  for (let k = 2; k <= n - 2; k++) {
-    dist1[k] = diagonals[k - 2];
-  }
-  // dist1[n - 1] (distance P1 to Pn) is the closing boundary side: sides[n - 1]
-  dist1[n - 1] = sides[n - 1];
+  // Place intermediate points P3 to P(n-1) (index 2 to n-2)
+  for (let i = 2; i <= n - 2; i++) {
+    // Find tie connecting corner i to an already-placed corner k < i (excluding adjacent corner i - 1)
+    const matchingTies = normalizedTies.filter((t) => {
+      const isFrom = t.from === i;
+      const isTo = t.to === i;
+      if (!isFrom && !isTo) return false;
+      const other = isFrom ? t.to : t.from;
+      return other < i && other !== i - 1;
+    });
 
-  let dirAngle = 0; // Direction angle of ray P1 -> P(current)
-
-  // Place intermediate points P3 to P(n-1)
-  for (let k = 2; k <= n - 2; k++) {
-    const b = dist1[k - 1];          // P1 to P(prev)
-    const c = diagonals[k - 2];       // P1 to P(current)
-    const a = sides[k - 1];           // P(prev) to P(current)
-
-    let cosTheta = (b * b + c * c - a * a) / (2 * b * c);
-
-    // Floating-point clamping for near-collinear / exact boundary cases
-    if (cosTheta > 1 && cosTheta < 1 + 1e-9) cosTheta = 1;
-    if (cosTheta < -1 && cosTheta > -1 - 1e-9) cosTheta = -1;
-
-    if (cosTheta < -1 || cosTheta > 1 || isNaN(cosTheta)) {
+    if (matchingTies.length === 0) {
       throw new ChainSurveyError(
-        `Inconsistent tape measurements for triangle (P1, P${k}, P${k + 1}): sides ${b.toFixed(3)}, ${c.toFixed(3)}, ${a.toFixed(3)} cannot form a real triangle`
+        `Corner P${i + 1} requires a tie connecting it to an already-placed non-adjacent corner (P1 to P${i - 1})`
+      );
+    }
+    if (matchingTies.length > 1) {
+      throw new ChainSurveyError(
+        `Corner P${i + 1} has multiple ties. Exactly one tie to an already-placed corner is required.`
       );
     }
 
-    const theta = Math.acos(cosTheta);
-    dirAngle += theta;
+    const tie = matchingTies[0];
+    const k = tie.from === i ? tie.to : tie.from;
+    const P_prev = points[i - 1];
+    const P_k = points[k];
 
-    points.push({
-      x: c * Math.cos(dirAngle),
-      y: c * Math.sin(dirAngle),
-    });
+    const b = distance(P_prev, P_k);
+    const c = sides[i - 1];       // boundary side P(i-1) -> P(i)
+    const a = tie.distance;       // tie P(k) -> P(i)
+
+    if (b < 1e-9) {
+      throw new ChainSurveyError(`Corners P${k + 1} and P${i} are coincident`);
+    }
+
+    let cosAlpha = (b * b + c * c - a * a) / (2 * b * c);
+    if (cosAlpha > 1 && cosAlpha < 1 + 1e-9) cosAlpha = 1;
+    if (cosAlpha < -1 && cosAlpha > -1 - 1e-9) cosAlpha = -1;
+
+    if (cosAlpha < -1 || cosAlpha > 1 || isNaN(cosAlpha)) {
+      throw new ChainSurveyError(
+        `Inconsistent tape measurements for triangle (P${k + 1}, P${i}, P${i + 1}): sides ${b.toFixed(3)}, ${c.toFixed(3)}, ${a.toFixed(3)} cannot form a real triangle`
+      );
+    }
+
+    const alpha = Math.acos(cosAlpha);
+    const thetaBase = Math.atan2(P_k.y - P_prev.y, P_k.x - P_prev.x);
+
+    const cand1: Point2D = {
+      x: P_prev.x + c * Math.cos(thetaBase + alpha),
+      y: P_prev.y + c * Math.sin(thetaBase + alpha),
+    };
+    const cand2: Point2D = {
+      x: P_prev.x + c * Math.cos(thetaBase - alpha),
+      y: P_prev.y + c * Math.sin(thetaBase - alpha),
+    };
+
+    const vInX = P_prev.x - points[i - 2].x;
+    const vInY = P_prev.y - points[i - 2].y;
+
+    const cross1 = vInX * (cand1.y - P_prev.y) - vInY * (cand1.x - P_prev.x);
+    const cross2 = vInX * (cand2.y - P_prev.y) - vInY * (cand2.x - P_prev.x);
+
+    const majoritySign = getMajorityTurnSign(points);
+
+    let defaultIndex: 0 | 1 = 0;
+    const sign1 = Math.sign(cross1);
+    const sign2 = Math.sign(cross2);
+
+    if (sign1 === majoritySign && sign2 !== majoritySign) {
+      defaultIndex = 0;
+    } else if (sign2 === majoritySign && sign1 !== majoritySign) {
+      defaultIndex = 1;
+    } else {
+      defaultIndex = cross1 * majoritySign >= cross2 * majoritySign ? 0 : 1;
+    }
+
+    const flipped = isFlipped(i);
+    const chosenIndex: 0 | 1 = flipped ? (defaultIndex === 0 ? 1 : 0) : defaultIndex;
+    const chosenPoint = chosenIndex === 0 ? cand1 : cand2;
+
+    points.push(chosenPoint);
+
+    if (distance(cand1, cand2) > 1e-6) {
+      ambiguousCorners.push({
+        pointIndex: i,
+        candidates: [cand1, cand2],
+        chosenIndex,
+      });
+    }
   }
 
   // Place final point Pn (vertex index n - 1)
-  // Triangle (P1, P(n-1), Pn)
-  const b = dist1[n - 2];       // P1 to P(n-1)
-  const c = sides[n - 1];        // P1 to Pn (closing side)
-  const a = sides[n - 2];        // P(n-1) to Pn
+  // Triangle (P(n-2), P0, Pn) using boundary side P(n-2)->Pn and closing side Pn->P0
+  const P_prev = points[n - 2];
+  const P_0 = points[0];
+  const b = distance(P_prev, P_0);
+  const c = sides[n - 2];        // distance P(n-2) to Pn
+  const a = sides[n - 1];        // distance P0 to Pn (closing side)
 
-  let cosTheta = (b * b + c * c - a * a) / (2 * b * c);
+  if (b < 1e-9) {
+    throw new ChainSurveyError(`Corners P1 and P${n - 1} are coincident`);
+  }
 
-  if (cosTheta > 1 && cosTheta < 1 + 1e-9) cosTheta = 1;
-  if (cosTheta < -1 && cosTheta > -1 - 1e-9) cosTheta = -1;
+  let cosAlpha = (b * b + c * c - a * a) / (2 * b * c);
+  if (cosAlpha > 1 && cosAlpha < 1 + 1e-9) cosAlpha = 1;
+  if (cosAlpha < -1 && cosAlpha > -1 - 1e-9) cosAlpha = -1;
 
-  if (cosTheta < -1 || cosTheta > 1 || isNaN(cosTheta)) {
+  if (cosAlpha < -1 || cosAlpha > 1 || isNaN(cosAlpha)) {
     throw new ChainSurveyError(
       `Inconsistent tape measurements for closing triangle (P1, P${n - 1}, P${n}): sides ${b.toFixed(3)}, ${c.toFixed(3)}, ${a.toFixed(3)} cannot form a real triangle`
     );
   }
 
-  const theta = Math.acos(cosTheta);
-  dirAngle += theta;
+  const alpha = Math.acos(cosAlpha);
+  const thetaBase = Math.atan2(P_0.y - P_prev.y, P_0.x - P_prev.x);
 
-  points.push({
-    x: c * Math.cos(dirAngle),
-    y: c * Math.sin(dirAngle),
-  });
+  const cand1: Point2D = {
+    x: P_prev.x + c * Math.cos(thetaBase + alpha),
+    y: P_prev.y + c * Math.sin(thetaBase + alpha),
+  };
+  const cand2: Point2D = {
+    x: P_prev.x + c * Math.cos(thetaBase - alpha),
+    y: P_prev.y + c * Math.sin(thetaBase - alpha),
+  };
 
-  return { points };
+  const vInX = P_prev.x - points[n - 3].x;
+  const vInY = P_prev.y - points[n - 3].y;
+
+  // Turn at P(n-2)
+  const cross1 = vInX * (cand1.y - P_prev.y) - vInY * (cand1.x - P_prev.x);
+  const cross2 = vInX * (cand2.y - P_prev.y) - vInY * (cand2.x - P_prev.x);
+
+  // Turn at Pn closing into P0
+  const closeTurn1 = (cand1.x - P_prev.x) * (P_0.y - cand1.y) - (cand1.y - P_prev.y) * (P_0.x - cand1.x);
+  const closeTurn2 = (cand2.x - P_prev.x) * (P_0.y - cand2.y) - (cand2.y - P_prev.y) * (P_0.x - cand2.x);
+
+  const majoritySign = getMajorityTurnSign(points);
+
+  let defaultIndex: 0 | 1 = 0;
+  const match1 = (Math.sign(cross1) === majoritySign ? 1 : 0) + (Math.sign(closeTurn1) === majoritySign ? 1 : 0);
+  const match2 = (Math.sign(cross2) === majoritySign ? 1 : 0) + (Math.sign(closeTurn2) === majoritySign ? 1 : 0);
+
+  if (match1 > match2) {
+    defaultIndex = 0;
+  } else if (match2 > match1) {
+    defaultIndex = 1;
+  } else {
+    // If tie-break, compare total turn score in majority direction
+    const score1 = cross1 * majoritySign + closeTurn1 * majoritySign;
+    const score2 = cross2 * majoritySign + closeTurn2 * majoritySign;
+    defaultIndex = score1 >= score2 ? 0 : 1;
+  }
+
+  const flipped = isFlipped(n - 1);
+  const chosenIndex: 0 | 1 = flipped ? (defaultIndex === 0 ? 1 : 0) : defaultIndex;
+  const chosenPoint = chosenIndex === 0 ? cand1 : cand2;
+
+  points.push(chosenPoint);
+
+  if (distance(cand1, cand2) > 1e-6) {
+    ambiguousCorners.push({
+      pointIndex: n - 1,
+      candidates: [cand1, cand2],
+      chosenIndex,
+    });
+  }
+
+  return { points, ambiguousCorners };
 }
 
 /**
