@@ -84,11 +84,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 onChange={(e) => updateSettings({ areaUnit: e.target.value as AreaUnit })}
               >
                 <option value="sqm">Square Metres (m²)</option>
+                <option value="are">Ares (100 m²)</option>
                 <option value="cent">Indian Cents (40.47 m²)</option>
                 <option value="acre">Acres (ac)</option>
                 <option value="sqft">Square Feet (ft²)</option>
                 <option value="hectare">Hectares (ha)</option>
                 <option value="sqyd">Square Yards (yd²)</option>
+                <option value="guntha">Gunthas</option>
               </select>
             </div>
           </div>

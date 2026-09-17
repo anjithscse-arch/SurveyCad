@@ -1,5 +1,5 @@
 export type LinearUnit = 'm' | 'cm' | 'mm' | 'ft' | 'usft' | 'in';
-export type AreaUnit = 'sqm' | 'sqft' | 'acre' | 'hectare' | 'cent' | 'guntha' | 'sqyd';
+export type AreaUnit = 'sqm' | 'sqft' | 'acre' | 'hectare' | 'are' | 'cent' | 'guntha' | 'sqyd';
 export type AngleFormat = 'deg' | 'dms' | 'quadrant'; // Decimal degrees, DMS (45°15'00"), Quadrant (N 45° E)
 
 export interface TraverseLeg {
@@ -28,6 +28,7 @@ export interface AreaCalculationResult {
   cents: number;
   gunthas?: number;
   hectares: number;
+  ares?: number;
   sqYards: number;
   perimeterMeters: number;
   perimeterFeet: number;

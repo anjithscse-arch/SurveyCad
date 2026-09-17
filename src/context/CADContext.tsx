@@ -267,6 +267,7 @@ export const CADProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       gunthas: convertArea(safeSqm, 'sqm', 'guntha'),
       acres: convertArea(safeSqm, 'sqm', 'acre'),
       hectares: convertArea(safeSqm, 'sqm', 'hectare'),
+      ares: convertArea(safeSqm, 'sqm', 'are'),
       perimeterMeters: netPerimeterM,
       perimeterFeet: convertDistance(netPerimeterM, 'm', 'ft'),
       vertexCount: baseResult.vertexCount,

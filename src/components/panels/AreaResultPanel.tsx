@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useCAD } from '../../context/CADContext';
-import { formatNumber, LINEAR_TO_METERS } from '../../survey/units';
+import { formatNumber, LINEAR_TO_METERS, convertArea } from '../../survey/units';
 import { AlertTriangle, CheckCircle2, ShieldAlert, ChevronDown, ChevronUp } from 'lucide-react';
 
 export const AreaResultPanel: React.FC = () => {
@@ -180,7 +180,7 @@ export const AreaResultPanel: React.FC = () => {
             }}
           >
             {showMoreUnits ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            <span>{showMoreUnits ? 'Fewer units ▴' : 'More units ▾ (Cents, Gunthas, Hectares, US Survey Feet)'}</span>
+            <span>{showMoreUnits ? 'Fewer units ▴' : 'More units ▾ (Cents, Gunthas, Ares, Hectares, US Survey Feet)'}</span>
           </button>
 
           {showMoreUnits && (
@@ -240,6 +240,13 @@ export const AreaResultPanel: React.FC = () => {
                   <div style={{ fontSize: '9px', color: 'var(--text-dim)' }}>US Survey Feet</div>
                   <div style={{ fontSize: '13px', fontWeight: '600', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
                     {formatNumber(sqUsFt, 2)} <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>sq usft</span>
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(0,0,0,0.25)', padding: '6px 8px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: '9px', color: 'var(--text-dim)' }}>Ares</div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>
+                    {formatNumber(areaResult.ares ?? convertArea(areaResult.sqMeters, 'sqm', 'are'), 3)} <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>a</span>
                   </div>
                 </div>
               </div>

@@ -33,6 +33,7 @@ export const AREA_TO_SQMETERS: Record<AreaUnit, number> = {
   cent: 40.468564224,
   guntha: 101.17141056,
   hectare: 10000,
+  are: 100, // 1 are = 100 m² exactly; 1 hectare = 100 ares
   sqyd: 0.83612736,
 };
 
@@ -43,6 +44,7 @@ export const AREA_LABELS: Record<AreaUnit, string> = {
   cent: 'cents',
   guntha: 'gunthas',
   hectare: 'ha',
+  are: 'ares',
   sqyd: 'sq yd',
 };
 
